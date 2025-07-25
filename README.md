@@ -16,7 +16,7 @@ A Python application that analyzes player data to determine optimal role assignm
 
 ### Option 1: Google Colab (Recommended for Quick Start)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YOUR_USERNAME/lol-team-optimizer/blob/main/LoL_Team_Optimizer_Colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicholas-golle/lol-team-optimizer/blob/main/LoL_Team_Optimizer_Colab.ipynb)
 
 1. Click the "Open in Colab" button above
 2. Run the setup cell to install dependencies
