@@ -588,10 +588,14 @@ class CLI:
         print("-" * 25)
         
         players = self.data_manager.load_player_data()
-        if len(players) < 5:
-            print(f"Need at least 5 players for optimization. Currently have {len(players)} players.")
+        if len(players) < 2:
+            print(f"Need at least 2 players for optimization. Currently have {len(players)} players.")
             print("Please add more players first.")
             return
+        
+        if len(players) < 5:
+            print(f"⚠️  You have {len(players)} players. Optimization works best with 5+ players.")
+            print("   Some roles may be left unassigned or assigned to less optimal players.")
         
         # Select players for optimization
         selected_players = self._select_players_for_optimization(players)

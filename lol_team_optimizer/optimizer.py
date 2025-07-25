@@ -85,8 +85,8 @@ class OptimizationEngine:
         if not available_players:
             raise ValueError("No players provided for optimization")
         
-        if len(available_players) < 5:
-            raise ValueError(f"At least 5 players required for team optimization, got {len(available_players)}")
+        if len(available_players) < 2:
+            raise ValueError(f"At least 2 players required for team optimization, got {len(available_players)}")
         
         # Validate player data
         for i, player in enumerate(available_players):
@@ -96,11 +96,13 @@ class OptimizationEngine:
                 raise ValueError(f"Player '{player.name}' has invalid role preferences")
         
         try:
-            # Generate all possible team combinations if more than 5 players
-            if len(available_players) == 5:
+            # Generate team combinations based on available players
+            if len(available_players) <= 5:
+                # Use all available players (even if less than 5)
                 team_combinations = [available_players]
-                self.logger.info("Optimizing single team of 5 players")
+                self.logger.info(f"Optimizing team with {len(available_players)} players")
             else:
+                # Generate combinations of 5 players from available pool
                 from itertools import combinations
                 team_combinations = list(combinations(available_players, 5))
                 self.logger.info(f"Evaluating {len(team_combinations)} possible team combinations")
@@ -151,16 +153,18 @@ class OptimizationEngine:
     
     def _optimize_single_team(self, players: List[Player]) -> TeamAssignment:
         """
-        Optimize role assignments for exactly 5 players.
+        Optimize role assignments for available players (2-5 players).
         
         Args:
-            players: List of exactly 5 players
+            players: List of 2-5 players
             
         Returns:
             TeamAssignment with optimal role assignments
         """
-        if len(players) != 5:
-            raise ValueError("Exactly 5 players required for single team optimization")
+        if len(players) < 2:
+            raise ValueError("At least 2 players required for single team optimization")
+        if len(players) > 5:
+            raise ValueError("Maximum 5 players allowed for single team optimization")
         
         # Build cost matrix (we minimize cost, so use negative scores)
         cost_matrix = self._build_cost_matrix(players)
@@ -174,6 +178,14 @@ class OptimizationEngine:
         total_score = 0
         
         for player_idx, role_idx in zip(player_indices, role_indices):
+            # Skip dummy assignments (high cost assignments)
+            if player_idx >= len(players) or role_idx >= len(self.roles):
+                continue
+            
+            # Skip assignments with very high cost (dummy assignments)
+            if cost_matrix[player_idx, role_idx] >= 999.0:
+                continue
+                
             player = players[player_idx]
             role = self.roles[role_idx]
             assignments[role] = player.name
@@ -214,8 +226,13 @@ class OptimizationEngine:
         """
         n_players = len(players)
         n_roles = len(self.roles)
-        cost_matrix = np.zeros((n_players, n_roles))
         
+        # For fewer than 5 players, we need to create a square matrix
+        # by adding dummy players with high cost (so they won't be assigned)
+        matrix_size = max(n_players, n_roles)
+        cost_matrix = np.full((matrix_size, matrix_size), 1000.0)  # High cost for dummy assignments
+        
+        # Fill in actual player costs
         for i, player in enumerate(players):
             for j, role in enumerate(self.roles):
                 # Calculate individual performance score
@@ -301,11 +318,7 @@ class OptimizationEngine:
                 
                 for mastery in all_masteries:
                     # Check if this champion can play the assigned role
-                    if self.champion_data_manager:
-                        champion_roles = self.champion_data_manager.get_champion_roles(mastery.champion_id)
-                        role_suitability = 0.7 if role in champion_roles else 0.3
-                    else:
-                        role_suitability = 0.5  # Default if no champion data
+                    role_suitability = self._calculate_role_suitability(mastery, role)
                     
                     confidence = self._calculate_recommendation_confidence(mastery, role_suitability)
                     
@@ -322,12 +335,7 @@ class OptimizationEngine:
                 # Use role-specific champions
                 for mastery in top_champions:
                     # Calculate role suitability based on champion data
-                    if self.champion_data_manager:
-                        champion_roles = self.champion_data_manager.get_champion_roles(mastery.champion_id)
-                        role_suitability = 0.9 if role in champion_roles else 0.6
-                    else:
-                        # Assume good suitability since it's in the role champion pool
-                        role_suitability = 0.8
+                    role_suitability = self._calculate_role_suitability(mastery, role)
                     
                     confidence = self._calculate_recommendation_confidence(mastery, role_suitability)
                     
@@ -376,6 +384,91 @@ class OptimizationEngine:
         final_confidence = (mastery_confidence * 0.7) + (role_suitability * 0.3)
         
         return max(0.0, min(1.0, final_confidence))
+    
+    def _calculate_role_suitability(self, mastery, role: str) -> float:
+        """
+        Calculate how suitable a champion is for a specific role.
+        
+        Args:
+            mastery: ChampionMastery object
+            role: Role to evaluate suitability for
+            
+        Returns:
+            Role suitability score (0-1)
+        """
+        if not self.champion_data_manager:
+            # If no champion data manager, assume moderate suitability
+            return 0.6
+        
+        # Get champion's primary roles
+        champion_roles = self.champion_data_manager.get_champion_roles(mastery.champion_id)
+        
+        if not champion_roles:
+            # No role data available
+            return 0.5
+        
+        if role in champion_roles:
+            # Champion can play this role
+            if len(champion_roles) == 1:
+                # Champion is specialized for this role
+                return 0.95
+            elif len(champion_roles) == 2:
+                # Champion can play 2 roles well
+                return 0.85
+            else:
+                # Champion is flexible but less specialized
+                return 0.75
+        else:
+            # Champion is not typically played in this role
+            # But some champions can be flexed (e.g., mages to support)
+            
+            # Check for common flex picks
+            flex_compatibility = self._check_flex_compatibility(mastery.champion_id, champion_roles, role)
+            if flex_compatibility > 0:
+                return flex_compatibility
+            
+            # Very poor fit for this role
+            return 0.2
+    
+    def _check_flex_compatibility(self, champion_id: int, champion_roles: List[str], target_role: str) -> float:
+        """
+        Check if a champion can be flexed to a different role.
+        
+        Args:
+            champion_id: Champion ID
+            champion_roles: Champion's primary roles
+            target_role: Role we want to flex to
+            
+        Returns:
+            Flex compatibility score (0-1)
+        """
+        # Common flex patterns
+        flex_patterns = {
+            # Mages can often support
+            ('middle', 'support'): 0.6,
+            # Some supports can mid
+            ('support', 'middle'): 0.4,
+            # ADCs can sometimes mid
+            ('bottom', 'middle'): 0.3,
+            # Some mids can ADC
+            ('middle', 'bottom'): 0.3,
+            # Tanks can often flex between top and jungle
+            ('top', 'jungle'): 0.7,
+            ('jungle', 'top'): 0.7,
+            # Some junglers can support
+            ('jungle', 'support'): 0.4,
+            # Some tops can support (tank supports)
+            ('top', 'support'): 0.5,
+        }
+        
+        # Check if any of the champion's roles can flex to target role
+        max_flex = 0.0
+        for champ_role in champion_roles:
+            flex_key = (champ_role, target_role)
+            if flex_key in flex_patterns:
+                max_flex = max(max_flex, flex_patterns[flex_key])
+        
+        return max_flex
     
     def _generate_explanation(self, players: List[Player], assignments: Dict[str, str], 
                             individual_scores: Dict[str, float], 

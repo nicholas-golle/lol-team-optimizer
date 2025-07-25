@@ -178,9 +178,9 @@ class TeamAssignment:
                 raise ValueError("Each player can only be assigned to one role")
     
     def is_complete(self) -> bool:
-        """Check if all 5 roles are assigned."""
-        required_roles = {"top", "jungle", "middle", "support", "bottom"}
-        return set(self.assignments.keys()) == required_roles
+        """Check if the team assignment is valid (has at least some role assignments)."""
+        # For teams with fewer than 5 players, we don't require all roles to be filled
+        return len(self.assignments) >= 2  # At least 2 players must be assigned
     
     def get_player_role(self, player_name: str) -> Optional[str]:
         """Get the role assigned to a specific player."""

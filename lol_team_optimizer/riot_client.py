@@ -321,23 +321,53 @@ class RiotAPIClient:
     
     def get_match_history(self, puuid: str, count: int = 20, queue: Optional[int] = None) -> List[str]:
         """
-        Fetch match history for a player.
+        Fetch match history for a player, filtered for Summoner's Rift games.
         
         Args:
             puuid: Player's PUUID
             count: Number of matches to retrieve (max 100)
-            queue: Queue ID to filter by (optional)
+            queue: Queue ID to filter by (optional, defaults to Summoner's Rift queues)
             
         Returns:
-            List of match IDs
+            List of match IDs from Summoner's Rift games
         """
         endpoint = f"/lol/match/v5/matches/by-puuid/{puuid}/ids"
         params = {"count": min(count, 100)}
         
         if queue is not None:
             params["queue"] = queue
+        else:
+            # Filter for Summoner's Rift queues only
+            # 420 = Ranked Solo/Duo, 440 = Ranked Flex, 400 = Normal Draft, 430 = Normal Blind
+            summoners_rift_queues = [420, 440, 400, 430]
+            # Note: API doesn't support multiple queue filters, so we'll filter after fetching
+            pass
         
-        return self._make_request(endpoint, params)
+        match_ids = self._make_request(endpoint, params)
+        
+        # If no specific queue was requested, filter for Summoner's Rift games
+        if queue is None and match_ids:
+            filtered_matches = []
+            summoners_rift_queues = {420, 440, 400, 430}  # Ranked Solo/Duo, Ranked Flex, Normal Draft, Normal Blind
+            
+            for match_id in match_ids:
+                try:
+                    match_details = self.get_match_details(match_id)
+                    queue_id = match_details.get('info', {}).get('queueId')
+                    if queue_id in summoners_rift_queues:
+                        filtered_matches.append(match_id)
+                    
+                    # Stop when we have enough Summoner's Rift matches
+                    if len(filtered_matches) >= count:
+                        break
+                        
+                except Exception as e:
+                    # Skip matches that can't be fetched
+                    continue
+            
+            return filtered_matches
+        
+        return match_ids
     
     def get_match_details(self, match_id: str) -> Dict[str, Any]:
         """
