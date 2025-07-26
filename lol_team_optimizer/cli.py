@@ -18,6 +18,7 @@ from dataclasses import asdict
 from .config import Config
 from .data_manager import DataManager
 from .riot_client import RiotAPIClient
+from .synergy_manager import SynergyManager
 from .performance_calculator import PerformanceCalculator
 from .optimizer import OptimizationEngine, OptimizationResult
 from .champion_data import ChampionDataManager
@@ -59,8 +60,13 @@ class CLI:
         try:
             self.champion_data_manager = ChampionDataManager(self.config)
             self.performance_calculator = PerformanceCalculator(self.champion_data_manager)
-            self.optimizer = OptimizationEngine(self.performance_calculator, self.champion_data_manager)
-            self.logger.info("Optimization engine initialized")
+            
+            # Initialize synergy manager
+            self.synergy_manager = SynergyManager(self.riot_client, self.config.cache_directory)
+            synergy_db = self.synergy_manager.get_synergy_database()
+            
+            self.optimizer = OptimizationEngine(self.performance_calculator, self.champion_data_manager, synergy_db)
+            self.logger.info("Optimization engine initialized with synergy support")
         except Exception as e:
             self.logger.error(f"Failed to initialize optimization components: {e}")
             raise
@@ -91,13 +97,15 @@ class CLI:
                 elif choice == "4":
                     self._safe_execute(self._view_player_data, "player data viewing")
                 elif choice == "5":
-                    self._safe_execute(self._system_maintenance, "system maintenance")
+                    self._safe_execute(self._synergy_analysis, "synergy analysis")
                 elif choice == "6":
+                    self._safe_execute(self._system_maintenance, "system maintenance")
+                elif choice == "7":
                     print("\nThank you for using League of Legends Team Optimizer!")
                     self.logger.info("Application shutdown requested by user")
                     break
                 else:
-                    print("\nInvalid choice. Please enter a number between 1-6.")
+                    print("\nInvalid choice. Please enter a number between 1-7.")
                 
                 input("\nPress Enter to continue...")
                 
@@ -239,15 +247,19 @@ class CLI:
         print("   └─ Find optimal role assignments with champion recommendations")
         print("4. View Player Data & Champion Analysis")
         print("   └─ Detailed player stats, champion pools, and comparisons")
-        print("5. System Maintenance")
+        print("5. Team Synergy Analysis")
+        print("   └─ Analyze player synergies based on match history")
+        print("6. System Maintenance")
         print("   └─ Cache management, diagnostics, and data validation")
-        print("6. Exit")
+        print("7. Exit")
         print()
         print("💡 New Features:")
         print("   • Champion mastery integration in optimization")
         print("   • Champion recommendations for each role assignment")
         print("   • Enhanced player analysis with champion pool depth")
         print("   • Cross-player champion analysis and comparisons")
+        print("   • Advanced synergy analysis based on match history")
+        print("   • Performance-based champion competency assessment")
     
     def _manage_players(self) -> None:
         """Handle player management operations."""
@@ -2261,6 +2273,287 @@ class CLI:
             
         except Exception as e:
             self.logger.warning(f"Could not set up debug logging: {e}")
+    
+    def _synergy_analysis(self) -> None:
+        """Handle synergy analysis operations."""
+        while True:
+            print("\n" + "=" * 50)
+            print("SYNERGY ANALYSIS")
+            print("=" * 50)
+            print("1. Update Synergy Data")
+            print("   └─ Analyze recent matches to build synergy database")
+            print("2. View Player Synergies")
+            print("   └─ See synergy analysis for a specific player")
+            print("3. Team Synergy Report")
+            print("   └─ Analyze synergy for a group of players")
+            print("4. Synergy Database Summary")
+            print("   └─ View overall synergy database statistics")
+            print("5. Back to Main Menu")
+            
+            choice = input("\nEnter your choice (1-5): ").strip()
+            
+            if choice == "1":
+                self._update_synergy_data()
+            elif choice == "2":
+                self._view_player_synergies()
+            elif choice == "3":
+                self._team_synergy_report()
+            elif choice == "4":
+                self._synergy_database_summary()
+            elif choice == "5":
+                break
+            else:
+                print("\nInvalid choice. Please enter a number between 1-5.")
+    
+    def _update_synergy_data(self) -> None:
+        """Update synergy data by analyzing recent matches."""
+        if not self.api_available:
+            print("\n❌ API not available - cannot update synergy data")
+            print("Synergy analysis requires Riot API access to fetch match history.")
+            return
+        
+        players = self.data_manager.load_player_data()
+        if not players:
+            print("\n❌ No players found. Add players first.")
+            return
+        
+        print(f"\n🔄 Updating synergy data for {len(players)} players...")
+        print("This may take a few minutes depending on match history...")
+        
+        try:
+            success = self.synergy_manager.update_synergy_data_for_players(players, match_count=30)
+            
+            if success:
+                print("\n✅ Synergy data updated successfully!")
+                
+                # Show summary
+                synergy_db = self.synergy_manager.get_synergy_database()
+                summary = synergy_db.export_synergy_summary()
+                
+                print(f"\n📊 Synergy Database Summary:")
+                print(f"   • Total player pairs: {summary['total_player_pairs']}")
+                print(f"   • Pairs with match data: {summary['pairs_with_match_data']}")
+                if summary['pairs_with_match_data'] > 0:
+                    print(f"   • Average games together: {summary['average_games_together']:.1f}")
+                    print(f"   • Average win rate together: {summary['average_win_rate_together']:.1%}")
+                
+                if summary['top_synergy_pairs']:
+                    print(f"\n🏆 Top Synergy Pairs:")
+                    for i, pair in enumerate(summary['top_synergy_pairs'][:3], 1):
+                        players_str = " + ".join(pair['players'])
+                        print(f"   {i}. {players_str}: {pair['synergy_score']:+.2f} ({pair['games']} games, {pair['win_rate']:.1%} WR)")
+            else:
+                print("\n❌ Failed to update synergy data. Check logs for details.")
+                
+        except Exception as e:
+            print(f"\n❌ Error updating synergy data: {e}")
+            self.logger.error(f"Synergy data update failed: {e}", exc_info=True)
+    
+    def _view_player_synergies(self) -> None:
+        """View synergy analysis for a specific player."""
+        players = self.data_manager.load_player_data()
+        if not players:
+            print("\n❌ No players found. Add players first.")
+            return
+        
+        # Select player
+        print("\nSelect a player for synergy analysis:")
+        for i, player in enumerate(players, 1):
+            print(f"{i}. {player.name}")
+        
+        try:
+            choice = int(input(f"\nEnter player number (1-{len(players)}): "))
+            if 1 <= choice <= len(players):
+                selected_player = players[choice - 1]
+            else:
+                print("Invalid selection.")
+                return
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+            return
+        
+        # Get synergy analysis
+        analysis = self.synergy_manager.analyze_player_synergies(selected_player.name)
+        
+        print(f"\n" + "=" * 60)
+        print(f"SYNERGY ANALYSIS: {analysis['player']}")
+        print("=" * 60)
+        
+        print(f"📊 Overview:")
+        print(f"   • Total teammates tracked: {analysis['total_teammates']}")
+        print(f"   • Teammates with sufficient data: {analysis['teammates_with_data']}")
+        
+        if analysis['best_teammates']:
+            print(f"\n🏆 Best Teammates:")
+            for i, teammate in enumerate(analysis['best_teammates'], 1):
+                synergy_desc = self._get_synergy_description(teammate['synergy_score'])
+                print(f"   {i}. {teammate['name']}: {teammate['synergy_score']:+.2f} ({synergy_desc})")
+                print(f"      └─ {teammate['games']} games together, {teammate['win_rate']:.1%} win rate")
+        
+        if analysis['worst_teammates']:
+            print(f"\n⚠️  Challenging Teammates:")
+            for i, teammate in enumerate(analysis['worst_teammates'], 1):
+                synergy_desc = self._get_synergy_description(teammate['synergy_score'])
+                print(f"   {i}. {teammate['name']}: {teammate['synergy_score']:+.2f} ({synergy_desc})")
+                print(f"      └─ {teammate['games']} games together, {teammate['win_rate']:.1%} win rate")
+        
+        if analysis['role_synergies']:
+            print(f"\n🎯 Role Combination Analysis:")
+            for role_combo, role_data in analysis['role_synergies'].items():
+                print(f"   {role_combo}:")
+                for data in role_data[:3]:  # Top 3 for each role combo
+                    print(f"      • {data['teammate']}: {data['games']} games, {data['win_rate']:.1%} WR")
+        
+        if analysis['recommendations']:
+            print(f"\n💡 Recommendations:")
+            for rec in analysis['recommendations']:
+                print(f"   • {rec}")
+    
+    def _team_synergy_report(self) -> None:
+        """Generate a team synergy report for selected players."""
+        players = self.data_manager.load_player_data()
+        if not players:
+            print("\n❌ No players found. Add players first.")
+            return
+        
+        if len(players) < 2:
+            print("\n❌ Need at least 2 players for synergy analysis.")
+            return
+        
+        # Select players for team analysis
+        print("\nSelect players for team synergy analysis:")
+        print("(Enter player numbers separated by spaces, e.g., '1 3 5')")
+        
+        for i, player in enumerate(players, 1):
+            print(f"{i}. {player.name}")
+        
+        try:
+            choices = input(f"\nEnter player numbers (2-{len(players)} players): ").strip().split()
+            selected_indices = [int(choice) - 1 for choice in choices]
+            
+            if len(selected_indices) < 2:
+                print("Please select at least 2 players.")
+                return
+            
+            if any(i < 0 or i >= len(players) for i in selected_indices):
+                print("Invalid player selection.")
+                return
+            
+            selected_players = [players[i].name for i in selected_indices]
+            
+        except ValueError:
+            print("Invalid input. Please enter numbers separated by spaces.")
+            return
+        
+        # Generate team synergy report
+        report = self.synergy_manager.get_team_synergy_report(selected_players)
+        
+        print(f"\n" + "=" * 60)
+        print(f"TEAM SYNERGY REPORT")
+        print("=" * 60)
+        
+        print(f"📊 Team Overview:")
+        print(f"   • Team size: {report['team_size']} players")
+        print(f"   • Overall synergy score: {report['overall_score']:+.2f}")
+        print(f"   • Data coverage: {report['data_coverage']:.1%}")
+        
+        synergy_desc = self._get_synergy_description(report['overall_score'])
+        print(f"   • Team synergy level: {synergy_desc}")
+        
+        if report['synergy_matrix']:
+            print(f"\n🔗 Player Pair Synergies:")
+            for pair_str, data in report['synergy_matrix'].items():
+                synergy_desc = self._get_synergy_description(data['synergy_score'])
+                print(f"   {pair_str}: {data['synergy_score']:+.2f} ({synergy_desc})")
+                if data['games_together'] > 0:
+                    print(f"      └─ {data['games_together']} games, {data['win_rate_together']:.1%} WR")
+                else:
+                    print(f"      └─ No match history together")
+        
+        if report['best_pairs']:
+            print(f"\n🏆 Strongest Synergy Pairs:")
+            for i, pair in enumerate(report['best_pairs'], 1):
+                players_str = " + ".join(pair['players'])
+                synergy_desc = self._get_synergy_description(pair['synergy_score'])
+                print(f"   {i}. {players_str}: {pair['synergy_score']:+.2f} ({synergy_desc})")
+                print(f"      └─ {pair['games_together']} games together")
+        
+        if report['worst_pairs']:
+            print(f"\n⚠️  Weakest Synergy Pairs:")
+            for i, pair in enumerate(report['worst_pairs'], 1):
+                players_str = " + ".join(pair['players'])
+                synergy_desc = self._get_synergy_description(pair['synergy_score'])
+                print(f"   {i}. {players_str}: {pair['synergy_score']:+.2f} ({synergy_desc})")
+                print(f"      └─ {pair['games_together']} games together")
+        
+        if report['recommendations']:
+            print(f"\n💡 Recommendations:")
+            for rec in report['recommendations']:
+                print(f"   • {rec}")
+    
+    def _synergy_database_summary(self) -> None:
+        """Display synergy database summary and statistics."""
+        synergy_db = self.synergy_manager.get_synergy_database()
+        summary = synergy_db.export_synergy_summary()
+        
+        print(f"\n" + "=" * 60)
+        print(f"SYNERGY DATABASE SUMMARY")
+        print("=" * 60)
+        
+        print(f"📊 Database Statistics:")
+        print(f"   • Total player pairs tracked: {summary['total_player_pairs']}")
+        print(f"   • Pairs with match data: {summary['pairs_with_match_data']}")
+        
+        if summary['pairs_with_match_data'] > 0:
+            print(f"   • Average games together: {summary['average_games_together']:.1f}")
+            print(f"   • Average win rate together: {summary['average_win_rate_together']:.1%}")
+        
+        if summary['last_updated']:
+            last_updated = datetime.fromisoformat(summary['last_updated'])
+            print(f"   • Last updated: {last_updated.strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            print(f"   • Last updated: Never")
+        
+        if summary['top_synergy_pairs']:
+            print(f"\n🏆 Top Synergy Pairs (5+ games):")
+            for i, pair in enumerate(summary['top_synergy_pairs'][:10], 1):
+                players_str = " + ".join(pair['players'])
+                synergy_desc = self._get_synergy_description(pair['synergy_score'])
+                print(f"   {i:2d}. {players_str}: {pair['synergy_score']:+.2f} ({synergy_desc})")
+                print(f"       └─ {pair['games']} games, {pair['win_rate']:.1%} win rate")
+        else:
+            print(f"\n📝 No synergy pairs with sufficient data (5+ games) found.")
+            print(f"    Run 'Update Synergy Data' to analyze match history.")
+        
+        # Show data coverage analysis
+        players = self.data_manager.load_player_data()
+        if players and len(players) > 1:
+            total_possible_pairs = len(players) * (len(players) - 1) // 2
+            coverage_percentage = (summary['pairs_with_match_data'] / total_possible_pairs) * 100 if total_possible_pairs > 0 else 0
+            
+            print(f"\n📈 Data Coverage Analysis:")
+            print(f"   • Total possible player pairs: {total_possible_pairs}")
+            print(f"   • Pairs with data: {summary['pairs_with_match_data']} ({coverage_percentage:.1f}%)")
+            
+            if coverage_percentage < 50:
+                print(f"   • Recommendation: Update synergy data to improve coverage")
+            elif coverage_percentage < 80:
+                print(f"   • Status: Good data coverage, some gaps remain")
+            else:
+                print(f"   • Status: Excellent data coverage")
+    
+    def _get_synergy_description(self, score: float) -> str:
+        """Convert synergy score to descriptive text."""
+        if score >= 0.15:
+            return "Excellent synergy"
+        elif score >= 0.05:
+            return "Good synergy"
+        elif score >= -0.05:
+            return "Neutral synergy"
+        elif score >= -0.15:
+            return "Poor synergy"
+        else:
+            return "Very poor synergy"
 
 
 def main():

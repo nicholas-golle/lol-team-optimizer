@@ -288,7 +288,8 @@ class PerformanceCalculator:
         }
     
     def calculate_synergy_score(self, player1: Player, role1: str, 
-                              player2: Player, role2: str) -> float:
+                              player2: Player, role2: str, 
+                              synergy_db: Optional['SynergyDatabase'] = None) -> float:
         """
         Calculate synergy score between two players in specific roles.
         
@@ -297,13 +298,29 @@ class PerformanceCalculator:
             role1: Role of first player
             player2: Second player
             role2: Role of second player
+            synergy_db: Optional synergy database for historical data
             
         Returns:
-            Synergy score (-0.2 to 0.2, where positive is good synergy)
+            Synergy score (-0.3 to 0.3, where positive is good synergy)
         """
-        # For now, implement basic synergy based on role compatibility
-        # This would be enhanced with actual match history analysis
+        # If we have synergy database, use historical data
+        if synergy_db:
+            synergy_data = synergy_db.get_synergy(player1.name, player2.name)
+            
+            if synergy_data.games_together >= 3:
+                # Use historical synergy data
+                historical_synergy = synergy_data.calculate_overall_synergy_score()
+                
+                # Get role-specific synergy if available
+                role_synergy = synergy_data.get_role_synergy_score(role1, role2)
+                role_adjustment = (role_synergy - 0.5) * 0.1  # Convert to -0.05 to 0.05 range
+                
+                # Combine historical and role-specific synergy
+                total_synergy = historical_synergy + role_adjustment
+                
+                return max(-0.3, min(0.3, total_synergy))
         
+        # Fallback to role compatibility matrix if no historical data
         synergy_matrix = {
             ("top", "jungle"): 0.1,
             ("jungle", "middle"): 0.15,
@@ -342,7 +359,7 @@ class PerformanceCalculator:
         
         total_synergy = base_synergy + performance_bonus + preference_bonus
         
-        # Clamp to reasonable range
+        # Clamp to reasonable range (reduced from historical data range)
         return max(-0.2, min(0.2, total_synergy))
     
     def normalize_scores(self, scores: Dict[str, float]) -> Dict[str, float]:
@@ -535,4 +552,187 @@ class PerformanceCalculator:
         elif preference_aligned >= 2:
             analysis["recommendations"].append("Good alignment between preferences and performance")
         
-        return analysis
+        return analysis    
+
+    def calculate_champion_synergy_score(self, player1: Player, champion1_id: int,
+                                       player2: Player, champion2_id: int,
+                                       synergy_db: Optional['SynergyDatabase'] = None) -> float:
+        """
+        Calculate synergy score between two players playing specific champions.
+        
+        Args:
+            player1: First player
+            champion1_id: Champion ID for first player
+            player2: Second player
+            champion2_id: Champion ID for second player
+            synergy_db: Optional synergy database for historical data
+            
+        Returns:
+            Champion synergy score (0.0 to 1.0)
+        """
+        if not synergy_db:
+            return 0.5  # Neutral score without data
+        
+        synergy_data = synergy_db.get_synergy(player1.name, player2.name)
+        
+        if synergy_data.games_together < 2:
+            return 0.5  # Not enough data
+        
+        # Get champion-specific synergy
+        champion_synergy = synergy_data.get_champion_synergy_score(champion1_id, champion2_id)
+        
+        return champion_synergy
+    
+    def analyze_team_synergy_composition(self, players: List[Player], assignments: Dict[str, str],
+                                       synergy_db: Optional['SynergyDatabase'] = None) -> Dict[str, any]:
+        """
+        Analyze the overall synergy composition of a team.
+        
+        Args:
+            players: List of players in the team
+            assignments: Role assignments (role -> player_name)
+            synergy_db: Optional synergy database
+            
+        Returns:
+            Dictionary containing team synergy analysis
+        """
+        player_dict = {p.name: p for p in players}
+        assigned_players = list(assignments.values())
+        
+        if len(assigned_players) < 2:
+            return {
+                'overall_synergy': 0.0,
+                'synergy_pairs': [],
+                'strengths': [],
+                'weaknesses': [],
+                'recommendations': []
+            }
+        
+        # Calculate all pairwise synergies
+        synergy_pairs = []
+        total_synergy = 0.0
+        pair_count = 0
+        
+        for i, player1_name in enumerate(assigned_players):
+            for player2_name in assigned_players[i+1:]:
+                player1 = player_dict[player1_name]
+                player2 = player_dict[player2_name]
+                
+                role1 = next(role for role, name in assignments.items() if name == player1_name)
+                role2 = next(role for role, name in assignments.items() if name == player2_name)
+                
+                synergy_score = self.calculate_synergy_score(player1, role1, player2, role2, synergy_db)
+                
+                synergy_pairs.append({
+                    'player1': player1_name,
+                    'role1': role1,
+                    'player2': player2_name,
+                    'role2': role2,
+                    'synergy_score': synergy_score,
+                    'games_together': 0,
+                    'win_rate_together': 0.0
+                })
+                
+                # Add historical data if available
+                if synergy_db:
+                    synergy_data = synergy_db.get_synergy(player1_name, player2_name)
+                    synergy_pairs[-1]['games_together'] = synergy_data.games_together
+                    synergy_pairs[-1]['win_rate_together'] = synergy_data.win_rate_together
+                
+                total_synergy += synergy_score
+                pair_count += 1
+        
+        overall_synergy = total_synergy / pair_count if pair_count > 0 else 0.0
+        
+        # Identify strengths and weaknesses
+        strengths = []
+        weaknesses = []
+        
+        for pair in synergy_pairs:
+            if pair['synergy_score'] > 0.1:
+                strengths.append(f"{pair['player1']} ({pair['role1']}) + {pair['player2']} ({pair['role2']}): Strong synergy")
+            elif pair['synergy_score'] < -0.1:
+                weaknesses.append(f"{pair['player1']} ({pair['role1']}) + {pair['player2']} ({pair['role2']}): Poor synergy")
+        
+        # Generate recommendations
+        recommendations = []
+        if overall_synergy > 0.05:
+            recommendations.append("Team has good overall synergy - focus on coordination")
+        elif overall_synergy < -0.05:
+            recommendations.append("Team synergy needs work - consider role swaps or practice together")
+        else:
+            recommendations.append("Team synergy is neutral - room for improvement through practice")
+        
+        if len(strengths) > 0:
+            recommendations.append(f"Leverage strong synergy pairs: {len(strengths)} identified")
+        
+        if len(weaknesses) > 0:
+            recommendations.append(f"Address weak synergy pairs: {len(weaknesses)} need attention")
+        
+        return {
+            'overall_synergy': overall_synergy,
+            'synergy_pairs': sorted(synergy_pairs, key=lambda x: x['synergy_score'], reverse=True),
+            'strengths': strengths,
+            'weaknesses': weaknesses,
+            'recommendations': recommendations,
+            'pair_count': pair_count,
+            'historical_data_coverage': sum(1 for p in synergy_pairs if p['games_together'] > 0) / pair_count if pair_count > 0 else 0.0
+        }
+    
+    def get_synergy_recommendations_for_player(self, player: Player, potential_teammates: List[Player],
+                                             target_role: str, synergy_db: Optional['SynergyDatabase'] = None) -> List[Dict[str, any]]:
+        """
+        Get synergy-based teammate recommendations for a player.
+        
+        Args:
+            player: Player to get recommendations for
+            potential_teammates: List of potential teammates
+            target_role: Role the player will play
+            synergy_db: Optional synergy database
+            
+        Returns:
+            List of teammate recommendations with synergy scores
+        """
+        recommendations = []
+        
+        for teammate in potential_teammates:
+            if teammate.name == player.name:
+                continue
+            
+            # Calculate synergy for each role the teammate could play
+            best_synergy = -1.0
+            best_role = None
+            
+            for role in ["top", "jungle", "middle", "support", "bottom"]:
+                if role == target_role:
+                    continue  # Can't play same role
+                
+                synergy_score = self.calculate_synergy_score(player, target_role, teammate, role, synergy_db)
+                
+                if synergy_score > best_synergy:
+                    best_synergy = synergy_score
+                    best_role = role
+            
+            if best_role:
+                # Get historical data if available
+                games_together = 0
+                win_rate_together = 0.0
+                
+                if synergy_db:
+                    synergy_data = synergy_db.get_synergy(player.name, teammate.name)
+                    games_together = synergy_data.games_together
+                    win_rate_together = synergy_data.win_rate_together
+                
+                recommendations.append({
+                    'teammate': teammate.name,
+                    'best_role': best_role,
+                    'synergy_score': best_synergy,
+                    'games_together': games_together,
+                    'win_rate_together': win_rate_together,
+                    'confidence': min(games_together / 10.0, 1.0)  # Confidence based on sample size
+                })
+        
+        # Sort by synergy score (descending)
+        recommendations.sort(key=lambda x: x['synergy_score'], reverse=True)
+        
+        return recommendations

@@ -41,17 +41,20 @@ class OptimizationEngine:
     """
     
     def __init__(self, performance_calculator: Optional[PerformanceCalculator] = None, 
-                 champion_data_manager: Optional[ChampionDataManager] = None):
+                 champion_data_manager: Optional[ChampionDataManager] = None,
+                 synergy_database: Optional['SynergyDatabase'] = None):
         """
         Initialize the optimization engine.
         
         Args:
             performance_calculator: Calculator for performance metrics
             champion_data_manager: Manager for champion data
+            synergy_database: Database for player synergy data
         """
         self.logger = logging.getLogger(__name__)
         self.performance_calculator = performance_calculator or PerformanceCalculator()
         self.champion_data_manager = champion_data_manager
+        self.synergy_database = synergy_database
         self.roles = ["top", "jungle", "middle", "support", "bottom"]
         
         # Optimization weights (can be made configurable)
@@ -279,7 +282,7 @@ class OptimizationEngine:
                 role2 = next(role for role, name in assignments.items() if name == player2_name)
                 
                 synergy_score = self.performance_calculator.calculate_synergy_score(
-                    player1, role1, player2, role2
+                    player1, role1, player2, role2, self.synergy_database
                 )
                 
                 synergy_scores[(player1_name, player2_name)] = synergy_score
