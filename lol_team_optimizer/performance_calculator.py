@@ -303,17 +303,25 @@ class PerformanceCalculator:
         Returns:
             Synergy score (-0.3 to 0.3, where positive is good synergy)
         """
-        # If we have synergy database, use historical data
+        # If we have synergy database, use role-specific historical data
         if synergy_db:
-            synergy_data = synergy_db.get_synergy(player1.name, player2.name)
+            # First try to get role-specific synergy data
+            role_synergy = synergy_db.get_role_specific_synergy(player1.name, role1, player2.name, role2)
             
-            if synergy_data.games_together >= 3:
-                # Use historical synergy data
-                historical_synergy = synergy_data.calculate_overall_synergy_score()
+            if role_synergy.games_together >= 3:
+                # Use role-specific synergy data (most accurate)
+                return role_synergy.calculate_role_synergy_score()
+            
+            # Fall back to general synergy data with role adjustment
+            general_synergy = synergy_db.get_synergy(player1.name, player2.name)
+            
+            if general_synergy.games_together >= 3:
+                # Use historical synergy data with role-specific adjustment
+                historical_synergy = general_synergy.calculate_overall_synergy_score()
                 
-                # Get role-specific synergy if available
-                role_synergy = synergy_data.get_role_synergy_score(role1, role2)
-                role_adjustment = (role_synergy - 0.5) * 0.1  # Convert to -0.05 to 0.05 range
+                # Get role-specific synergy if available from role combinations
+                role_synergy_score = general_synergy.get_role_synergy_score(role1, role2)
+                role_adjustment = (role_synergy_score - 0.5) * 0.1  # Convert to -0.05 to 0.05 range
                 
                 # Combine historical and role-specific synergy
                 total_synergy = historical_synergy + role_adjustment
@@ -736,3 +744,97 @@ class PerformanceCalculator:
         recommendations.sort(key=lambda x: x['synergy_score'], reverse=True)
         
         return recommendations
+    
+    def analyze_all_role_permutations(self, players: List[Player], 
+                                    synergy_db: Optional['SynergyDatabase'] = None) -> Dict[str, any]:
+        """
+        Analyze synergy for all possible role permutations of players.
+        
+        Args:
+            players: List of players to analyze
+            synergy_db: Optional synergy database
+            
+        Returns:
+            Dictionary with permutation analysis results
+        """
+        if len(players) < 2:
+            return {'error': 'Need at least 2 players for permutation analysis'}
+        
+        from itertools import permutations
+        
+        roles = ["top", "jungle", "middle", "support", "bottom"]
+        
+        # Generate all possible role assignments for the players
+        if len(players) == 5:
+            # Full team - all role permutations
+            role_permutations = list(permutations(roles))
+            player_assignments = [(players, perm) for perm in role_permutations]
+        else:
+            # Partial team - consider all role combinations
+            from itertools import combinations
+            role_combinations = list(combinations(roles, len(players)))
+            player_assignments = []
+            
+            for role_combo in role_combinations:
+                for role_perm in permutations(role_combo):
+                    player_assignments.append((players, role_perm))
+        
+        # Analyze each permutation
+        permutation_results = []
+        
+        for player_list, role_assignment in player_assignments[:50]:  # Limit to prevent excessive computation
+            assignments = {role: player.name for player, role in zip(player_list, role_assignment)}
+            
+            # Calculate synergy for this permutation
+            if synergy_db:
+                synergy_matrix = synergy_db.calculate_team_synergy_with_roles(assignments)
+                total_synergy = sum(synergy_matrix.values())
+            else:
+                # Fall back to basic synergy calculation
+                total_synergy = 0.0
+                for i, player1 in enumerate(player_list):
+                    for player2 in player_list[i+1:]:
+                        role1 = role_assignment[i]
+                        role2 = role_assignment[player_list.index(player2)]
+                        synergy_score = self.calculate_synergy_score(player1, role1, player2, role2, synergy_db)
+                        total_synergy += synergy_score
+            
+            permutation_results.append({
+                'assignments': assignments,
+                'total_synergy': total_synergy,
+                'synergy_matrix': synergy_matrix if synergy_db else {},
+                'avg_synergy': total_synergy / len(synergy_matrix) if synergy_matrix else 0.0
+            })
+        
+        # Sort by total synergy
+        permutation_results.sort(key=lambda x: x['total_synergy'], reverse=True)
+        
+        # Analyze results
+        best_permutation = permutation_results[0] if permutation_results else None
+        worst_permutation = permutation_results[-1] if permutation_results else None
+        
+        # Find best role combinations for each player pair
+        best_role_combinations = {}
+        if synergy_db and len(players) >= 2:
+            for i, player1 in enumerate(players):
+                for player2 in players[i+1:]:
+                    combinations = synergy_db.get_best_role_combinations_for_players(
+                        player1.name, player2.name, roles
+                    )
+                    if combinations:
+                        best_role_combinations[(player1.name, player2.name)] = combinations[:3]  # Top 3
+        
+        return {
+            'total_permutations_analyzed': len(permutation_results),
+            'best_permutation': best_permutation,
+            'worst_permutation': worst_permutation,
+            'synergy_range': {
+                'best': best_permutation['total_synergy'] if best_permutation else 0.0,
+                'worst': worst_permutation['total_synergy'] if worst_permutation else 0.0,
+                'difference': (best_permutation['total_synergy'] - worst_permutation['total_synergy']) if best_permutation and worst_permutation else 0.0
+            },
+            'top_permutations': permutation_results[:5],
+            'bottom_permutations': permutation_results[-3:] if len(permutation_results) > 3 else [],
+            'best_role_combinations': best_role_combinations,
+            'role_synergy_patterns': synergy_db.analyze_role_synergy_patterns([p.name for p in players], roles) if synergy_db else {}
+        }

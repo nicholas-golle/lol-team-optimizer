@@ -364,6 +364,127 @@ class TeamAssignment:
         return None
 
 @dataclass
+class RoleSpecificSynergyData:
+    """Represents synergy data between two players in specific roles."""
+    
+    player1_name: str
+    player1_role: str
+    player2_name: str
+    player2_role: str
+    
+    # Match statistics
+    games_together: int = 0
+    wins_together: int = 0
+    losses_together: int = 0
+    
+    # Performance metrics when playing in these roles together
+    avg_combined_kda: float = 0.0
+    avg_game_duration: float = 0.0
+    avg_vision_score_combined: float = 0.0
+    avg_damage_share: float = 0.0  # Combined damage percentage
+    avg_gold_share: float = 0.0    # Combined gold percentage
+    
+    # Champion combinations in these roles
+    champion_combinations: Dict[Tuple[int, int], Dict[str, any]] = field(default_factory=dict)
+    
+    # Temporal data
+    last_played_together: Optional[datetime] = None
+    recent_games_together: int = 0  # Games in last 30 days
+    
+    @property
+    def win_rate_together(self) -> float:
+        """Calculate win rate when playing in these roles together."""
+        if self.games_together == 0:
+            return 0.0
+        return self.wins_together / self.games_together
+    
+    @property
+    def synergy_key(self) -> Tuple[str, str, str, str]:
+        """Get synergy key for this role combination."""
+        return (self.player1_name, self.player1_role, self.player2_name, self.player2_role)
+    
+    def add_game_result(self, won: bool, player1_champion: int, player2_champion: int, game_data: Dict[str, any]):
+        """
+        Add a game result for this specific role combination.
+        
+        Args:
+            won: Whether the team won the game
+            player1_champion: Champion ID played by player1
+            player2_champion: Champion ID played by player2
+            game_data: Additional game performance data
+        """
+        self.games_together += 1
+        if won:
+            self.wins_together += 1
+        else:
+            self.losses_together += 1
+        
+        # Update champion combination data
+        champ_key = tuple(sorted([player1_champion, player2_champion]))
+        if champ_key not in self.champion_combinations:
+            self.champion_combinations[champ_key] = {
+                'games': 0,
+                'wins': 0,
+                'avg_performance': 0.0
+            }
+        
+        champ_data = self.champion_combinations[champ_key]
+        champ_data['games'] += 1
+        if won:
+            champ_data['wins'] += 1
+        
+        # Update performance metrics (running averages)
+        n = self.games_together
+        self.avg_combined_kda = ((self.avg_combined_kda * (n-1)) + game_data.get('combined_kda', 0.0)) / n
+        self.avg_vision_score_combined = ((self.avg_vision_score_combined * (n-1)) + game_data.get('combined_vision', 0.0)) / n
+        self.avg_game_duration = ((self.avg_game_duration * (n-1)) + game_data.get('game_duration', 0.0)) / n
+        self.avg_damage_share = ((self.avg_damage_share * (n-1)) + game_data.get('damage_share', 0.0)) / n
+        self.avg_gold_share = ((self.avg_gold_share * (n-1)) + game_data.get('gold_share', 0.0)) / n
+        
+        # Update temporal data
+        self.last_played_together = datetime.now()
+        if game_data.get('is_recent', False):
+            self.recent_games_together += 1
+    
+    def calculate_role_synergy_score(self) -> float:
+        """
+        Calculate synergy score for this specific role combination.
+        
+        Returns:
+            Synergy score (-0.3 to 0.3)
+        """
+        if self.games_together == 0:
+            return 0.0
+        
+        # Base synergy from win rate
+        base_synergy = (self.win_rate_together - 0.5) * 0.4
+        
+        # Performance bonuses
+        performance_bonus = 0.0
+        if self.avg_combined_kda > 3.0:
+            performance_bonus += 0.05
+        elif self.avg_combined_kda < 1.5:
+            performance_bonus -= 0.05
+        
+        # Damage/gold share bonus (good coordination)
+        if self.avg_damage_share > 0.6:  # High combined impact
+            performance_bonus += 0.03
+        
+        # Recency bonus
+        recency_bonus = 0.0
+        if self.recent_games_together >= 5:
+            recency_bonus = 0.05
+        elif self.recent_games_together >= 2:
+            recency_bonus = 0.02
+        
+        # Confidence adjustment based on sample size
+        confidence = min(self.games_together / 10.0, 1.0)
+        final_synergy = (base_synergy + performance_bonus + recency_bonus) * confidence
+        
+        return max(-0.3, min(0.3, final_synergy))
+
+
+@dataclass
 class PlayerSynergyData:
     """Represents synergy data between two players based on match history."""
     
@@ -373,7 +494,7 @@ class PlayerSynergyData:
     wins_together: int = 0
     losses_together: int = 0
     
-    # Role-specific synergy data
+    # Role-specific synergy data - now more granular
     role_combinations: Dict[Tuple[str, str], Dict[str, any]] = field(default_factory=dict)
     
     # Champion-specific synergy data
@@ -567,6 +688,7 @@ class SynergyDatabase:
     """Database for storing and managing player synergy data."""
     
     synergies: Dict[Tuple[str, str], PlayerSynergyData] = field(default_factory=dict)
+    role_specific_synergies: Dict[Tuple[str, str, str, str], RoleSpecificSynergyData] = field(default_factory=dict)
     last_updated: Optional[datetime] = None
     
     def get_synergy(self, player1: str, player2: str) -> PlayerSynergyData:
@@ -590,6 +712,50 @@ class SynergyDatabase:
         
         return self.synergies[key]
     
+    def get_role_specific_synergy(self, player1: str, role1: str, player2: str, role2: str) -> RoleSpecificSynergyData:
+        """
+        Get role-specific synergy data between two players in specific roles.
+        
+        Args:
+            player1: First player name
+            role1: First player's role
+            player2: Second player name
+            role2: Second player's role
+            
+        Returns:
+            RoleSpecificSynergyData object
+        """
+        key = (player1, role1, player2, role2)
+        
+        if key not in self.role_specific_synergies:
+            self.role_specific_synergies[key] = RoleSpecificSynergyData(
+                player1_name=player1,
+                player1_role=role1,
+                player2_name=player2,
+                player2_role=role2
+            )
+        
+        return self.role_specific_synergies[key]
+    
+    def get_all_role_synergies_for_players(self, player1: str, player2: str) -> List[RoleSpecificSynergyData]:
+        """
+        Get all role-specific synergies between two players.
+        
+        Args:
+            player1: First player name
+            player2: Second player name
+            
+        Returns:
+            List of RoleSpecificSynergyData objects
+        """
+        synergies = []
+        
+        for key, synergy in self.role_specific_synergies.items():
+            if (key[0] == player1 and key[2] == player2) or (key[0] == player2 and key[2] == player1):
+                synergies.append(synergy)
+        
+        return synergies
+    
     def add_match_data(self, match_data: Dict[str, any]):
         """
         Add match data to update synergy information.
@@ -611,9 +777,6 @@ class SynergyDatabase:
                 if not player1_name or not player2_name:
                     continue
                 
-                # Get synergy data
-                synergy = self.get_synergy(player1_name, player2_name)
-                
                 # Extract game data
                 won = player1.get('win', False)  # Assuming same team
                 player1_role = player1.get('role', 'unknown')
@@ -622,13 +785,24 @@ class SynergyDatabase:
                 player2_champion = player2.get('champion_id', 0)
                 
                 # Calculate combined performance metrics
-                combined_kda = (
-                    (player1.get('kills', 0) + player1.get('assists', 0)) / max(player1.get('deaths', 1), 1) +
-                    (player2.get('kills', 0) + player2.get('assists', 0)) / max(player2.get('deaths', 1), 1)
-                ) / 2
+                player1_kda = (player1.get('kills', 0) + player1.get('assists', 0)) / max(player1.get('deaths', 1), 1)
+                player2_kda = (player2.get('kills', 0) + player2.get('assists', 0)) / max(player2.get('deaths', 1), 1)
+                combined_kda = (player1_kda + player2_kda) / 2
                 
                 combined_vision = player1.get('vision_score', 0) + player2.get('vision_score', 0)
                 game_duration = match_data.get('game_duration', 0)
+                
+                # Calculate damage and gold shares
+                total_team_damage = match_data.get('total_team_damage', 1)
+                total_team_gold = match_data.get('total_team_gold', 1)
+                
+                player1_damage = player1.get('total_damage_dealt', 0)
+                player2_damage = player2.get('total_damage_dealt', 0)
+                damage_share = (player1_damage + player2_damage) / max(total_team_damage, 1)
+                
+                player1_gold = player1.get('gold_earned', 0)
+                player2_gold = player2.get('gold_earned', 0)
+                gold_share = (player1_gold + player2_gold) / max(total_team_gold, 1)
                 
                 # Check if game is recent (last 30 days)
                 game_creation = match_data.get('game_creation', 0)
@@ -641,10 +815,13 @@ class SynergyDatabase:
                     'combined_kda': combined_kda,
                     'combined_vision': combined_vision,
                     'game_duration': game_duration,
+                    'damage_share': damage_share,
+                    'gold_share': gold_share,
                     'is_recent': is_recent
                 }
                 
-                # Add game result to synergy data
+                # Update general synergy data
+                synergy = self.get_synergy(player1_name, player2_name)
                 synergy.add_game_result(
                     won=won,
                     player1_role=player1_role,
@@ -653,6 +830,18 @@ class SynergyDatabase:
                     player2_champion=player2_champion,
                     game_data=game_data
                 )
+                
+                # Update role-specific synergy data
+                if player1_role != 'unknown' and player2_role != 'unknown':
+                    role_synergy = self.get_role_specific_synergy(
+                        player1_name, player1_role, player2_name, player2_role
+                    )
+                    role_synergy.add_game_result(
+                        won=won,
+                        player1_champion=player1_champion,
+                        player2_champion=player2_champion,
+                        game_data=game_data
+                    )
         
         self.last_updated = datetime.now()
     
@@ -692,6 +881,110 @@ class SynergyDatabase:
                 synergy_matrix[(player1, player2)] = synergy_score
         
         return synergy_matrix
+    
+    def calculate_team_synergy_with_roles(self, assignments: Dict[str, str]) -> Dict[Tuple[str, str], float]:
+        """
+        Calculate team synergy matrix considering specific role assignments.
+        
+        Args:
+            assignments: Dictionary mapping roles to player names (role -> player_name)
+            
+        Returns:
+            Dictionary mapping player pairs to role-specific synergy scores
+        """
+        synergy_matrix = {}
+        
+        # Get all player-role pairs
+        player_roles = [(player, role) for role, player in assignments.items()]
+        
+        # Calculate synergy for all pairs considering their specific roles
+        for i, (player1, role1) in enumerate(player_roles):
+            for (player2, role2) in player_roles[i+1:]:
+                # Get role-specific synergy
+                role_synergy = self.get_role_specific_synergy(player1, role1, player2, role2)
+                synergy_score = role_synergy.calculate_role_synergy_score()
+                
+                synergy_matrix[(player1, player2)] = synergy_score
+        
+        return synergy_matrix
+    
+    def get_best_role_combinations_for_players(self, player1: str, player2: str, 
+                                             roles: List[str]) -> List[Tuple[str, str, float]]:
+        """
+        Get the best role combinations for two players based on synergy data.
+        
+        Args:
+            player1: First player name
+            player2: Second player name
+            roles: List of available roles
+            
+        Returns:
+            List of (role1, role2, synergy_score) tuples sorted by synergy score
+        """
+        combinations = []
+        
+        for role1 in roles:
+            for role2 in roles:
+                if role1 != role2:  # Players can't play the same role
+                    role_synergy = self.get_role_specific_synergy(player1, role1, player2, role2)
+                    if role_synergy.games_together > 0:  # Only include combinations with data
+                        synergy_score = role_synergy.calculate_role_synergy_score()
+                        combinations.append((role1, role2, synergy_score))
+        
+        # Sort by synergy score (descending)
+        combinations.sort(key=lambda x: x[2], reverse=True)
+        return combinations
+    
+    def analyze_role_synergy_patterns(self, players: List[str], roles: List[str]) -> Dict[str, any]:
+        """
+        Analyze synergy patterns across all role combinations.
+        
+        Args:
+            players: List of player names
+            roles: List of role names
+            
+        Returns:
+            Dictionary with synergy pattern analysis
+        """
+        role_pair_synergies = {}  # (role1, role2) -> [synergy_scores]
+        player_role_synergies = {}  # player -> {role -> avg_synergy}
+        
+        # Collect all role-specific synergy data
+        for synergy in self.role_specific_synergies.values():
+            if synergy.games_together >= 3:  # Minimum games for reliability
+                role_pair = tuple(sorted([synergy.player1_role, synergy.player2_role]))
+                synergy_score = synergy.calculate_role_synergy_score()
+                
+                if role_pair not in role_pair_synergies:
+                    role_pair_synergies[role_pair] = []
+                role_pair_synergies[role_pair].append(synergy_score)
+                
+                # Track player-role synergies
+                for player, role in [(synergy.player1_name, synergy.player1_role), 
+                                   (synergy.player2_name, synergy.player2_role)]:
+                    if player not in player_role_synergies:
+                        player_role_synergies[player] = {}
+                    if role not in player_role_synergies[player]:
+                        player_role_synergies[player][role] = []
+                    player_role_synergies[player][role].append(synergy_score)
+        
+        # Calculate average synergies
+        avg_role_pair_synergies = {}
+        for role_pair, scores in role_pair_synergies.items():
+            avg_role_pair_synergies[role_pair] = sum(scores) / len(scores)
+        
+        avg_player_role_synergies = {}
+        for player, role_scores in player_role_synergies.items():
+            avg_player_role_synergies[player] = {}
+            for role, scores in role_scores.items():
+                avg_player_role_synergies[player][role] = sum(scores) / len(scores)
+        
+        return {
+            'role_pair_synergies': avg_role_pair_synergies,
+            'player_role_synergies': avg_player_role_synergies,
+            'total_role_combinations': len(self.role_specific_synergies),
+            'reliable_combinations': len([s for s in self.role_specific_synergies.values() if s.games_together >= 3])
+        }
     
     def get_best_teammates_for_player(self, player_name: str, count: int = 5) -> List[Tuple[str, float]]:
         """
