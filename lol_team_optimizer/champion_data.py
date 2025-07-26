@@ -68,6 +68,9 @@ class ChampionDataManager:
         
         # Load cached data on initialization
         self._load_cached_data()
+        
+        # Clean up any old champion data files
+        self._cleanup_old_champion_files()
     
     def fetch_champion_list(self, force_refresh: bool = False) -> bool:
         """
@@ -284,17 +287,109 @@ class ChampionDataManager:
     
     def _save_cache(self, data: Dict) -> None:
         """
-        Save champion data to cache file.
+        Save champion data to cache file only if content has changed.
         
         Args:
             data: Champion data from Data Dragon API
         """
         try:
+            # Check if file exists and compare content
+            if self.cache_file.exists():
+                try:
+                    with open(self.cache_file, 'r', encoding='utf-8') as f:
+                        existing_data = json.load(f)
+                    
+                    # Compare the actual champion data (ignore metadata like version)
+                    existing_champions = existing_data.get('data', {})
+                    new_champions = data.get('data', {})
+                    
+                    if existing_champions == new_champions:
+                        self.logger.info("Champion data unchanged, skipping cache update")
+                        return
+                    else:
+                        self.logger.info("Champion data has changed, updating cache")
+                        
+                except (json.JSONDecodeError, KeyError) as e:
+                    self.logger.warning(f"Existing cache file corrupted, will overwrite: {e}")
+            
+            # Save the new data
             with open(self.cache_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2)
-            self.logger.debug("Champion data cached successfully")
+            self.logger.info("Champion data cached successfully")
+            
         except Exception as e:
             self.logger.error(f"Failed to save champion data cache: {e}")
+    
+    def _cleanup_old_champion_files(self) -> None:
+        """
+        Clean up old champion data files that may have accumulated.
+        
+        Removes any files in the champion_data directory that aren't the main champions.json file.
+        """
+        try:
+            if not self.cache_dir.exists():
+                return
+            
+            # List all files in the champion data directory
+            all_files = list(self.cache_dir.iterdir())
+            
+            # Keep only the main champions.json file
+            files_to_remove = []
+            for file_path in all_files:
+                if file_path.is_file() and file_path.name != "champions.json":
+                    files_to_remove.append(file_path)
+            
+            # Remove old files
+            removed_count = 0
+            for file_path in files_to_remove:
+                try:
+                    file_path.unlink()
+                    removed_count += 1
+                    self.logger.debug(f"Removed old champion data file: {file_path.name}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to remove old file {file_path.name}: {e}")
+            
+            if removed_count > 0:
+                self.logger.info(f"Cleaned up {removed_count} old champion data files")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to cleanup old champion files: {e}")
+    
+    def get_cache_info(self) -> Dict[str, any]:
+        """
+        Get information about the champion data cache.
+        
+        Returns:
+            Dictionary with cache information
+        """
+        info = {
+            'cache_file_exists': self.cache_file.exists(),
+            'cache_file_path': str(self.cache_file),
+            'cache_valid': self._is_cache_valid(),
+            'champions_loaded': len(self.champions),
+            'data_dragon_version': self.data_dragon_version
+        }
+        
+        if self.cache_file.exists():
+            try:
+                stat = self.cache_file.stat()
+                info['cache_file_size'] = stat.st_size
+                info['cache_file_modified'] = datetime.fromtimestamp(stat.st_mtime)
+            except Exception as e:
+                self.logger.warning(f"Failed to get cache file stats: {e}")
+        
+        # Check for any remaining old files
+        try:
+            if self.cache_dir.exists():
+                all_files = list(self.cache_dir.iterdir())
+                old_files = [f for f in all_files if f.is_file() and f.name != "champions.json"]
+                info['old_files_count'] = len(old_files)
+                if old_files:
+                    info['old_files'] = [f.name for f in old_files]
+        except Exception:
+            info['old_files_count'] = 0
+        
+        return info
     
     def _parse_champion_data(self, data: Dict) -> None:
         """

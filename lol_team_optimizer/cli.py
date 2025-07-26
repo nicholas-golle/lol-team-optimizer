@@ -1600,10 +1600,11 @@ class CLI:
             print("5. Refresh API data for all players")
             print("6. Test API connectivity")
             print("7. Export player data")
-            print("8. System diagnostics")
-            print("9. Back to main menu")
+            print("8. Champion data management")
+            print("9. System diagnostics")
+            print("10. Back to main menu")
             
-            choice = input("\nEnter your choice (1-9): ").strip()
+            choice = input("\nEnter your choice (1-10): ").strip()
             
             if choice == "1":
                 self._clear_expired_cache()
@@ -1620,11 +1621,13 @@ class CLI:
             elif choice == "7":
                 self._export_player_data()
             elif choice == "8":
-                self._run_system_diagnostics()
+                self._champion_data_management()
             elif choice == "9":
+                self._run_system_diagnostics()
+            elif choice == "10":
                 break
             else:
-                print("Invalid choice. Please enter a number between 1-9.")
+                print("Invalid choice. Please enter a number between 1-10.")
             
             input("\nPress Enter to continue...")
     
@@ -1871,6 +1874,118 @@ class CLI:
             
         except Exception as e:
             print(f"Error exporting player data: {e}")
+    
+    def _champion_data_management(self) -> None:
+        """Manage champion data cache and cleanup."""
+        while True:
+            print("\n" + "-" * 30)
+            print("CHAMPION DATA MANAGEMENT")
+            print("-" * 30)
+            print("1. View champion cache information")
+            print("2. Clean up old champion files")
+            print("3. Refresh champion data")
+            print("4. Back to system maintenance")
+            
+            choice = input("\nEnter your choice (1-4): ").strip()
+            
+            if choice == "1":
+                self._view_champion_cache_info()
+            elif choice == "2":
+                self._cleanup_champion_files()
+            elif choice == "3":
+                self._refresh_champion_data()
+            elif choice == "4":
+                break
+            else:
+                print("Invalid choice. Please enter a number between 1-4.")
+    
+    def _view_champion_cache_info(self) -> None:
+        """Display champion cache information."""
+        try:
+            print("\n" + "-" * 40)
+            print("CHAMPION CACHE INFORMATION")
+            print("-" * 40)
+            
+            cache_info = self.champion_data_manager.get_cache_info()
+            
+            print(f"Cache file exists: {'Yes' if cache_info['cache_file_exists'] else 'No'}")
+            print(f"Cache file path: {cache_info['cache_file_path']}")
+            print(f"Cache valid: {'Yes' if cache_info['cache_valid'] else 'No'}")
+            print(f"Champions loaded: {cache_info['champions_loaded']}")
+            print(f"Data Dragon version: {cache_info['data_dragon_version']}")
+            
+            if cache_info['cache_file_exists']:
+                if 'cache_file_size' in cache_info:
+                    size_mb = cache_info['cache_file_size'] / (1024 * 1024)
+                    print(f"Cache file size: {size_mb:.2f} MB")
+                
+                if 'cache_file_modified' in cache_info:
+                    print(f"Last modified: {cache_info['cache_file_modified'].strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            old_files_count = cache_info.get('old_files_count', 0)
+            if old_files_count > 0:
+                print(f"\n⚠️  Old champion files found: {old_files_count}")
+                if 'old_files' in cache_info:
+                    print("Old files:")
+                    for old_file in cache_info['old_files']:
+                        print(f"  • {old_file}")
+                print("💡 Suggestion: Run 'Clean up old champion files' to remove them")
+            else:
+                print(f"\n✅ No old champion files found")
+            
+        except Exception as e:
+            print(f"Error retrieving champion cache info: {e}")
+    
+    def _cleanup_champion_files(self) -> None:
+        """Clean up old champion data files."""
+        try:
+            print("\n🧹 Cleaning up old champion data files...")
+            
+            # Get info before cleanup
+            cache_info_before = self.champion_data_manager.get_cache_info()
+            old_files_before = cache_info_before.get('old_files_count', 0)
+            
+            if old_files_before == 0:
+                print("✅ No old champion files to clean up")
+                return
+            
+            # Perform cleanup
+            self.champion_data_manager._cleanup_old_champion_files()
+            
+            # Get info after cleanup
+            cache_info_after = self.champion_data_manager.get_cache_info()
+            old_files_after = cache_info_after.get('old_files_count', 0)
+            
+            files_removed = old_files_before - old_files_after
+            
+            if files_removed > 0:
+                print(f"✅ Successfully removed {files_removed} old champion files")
+            else:
+                print("ℹ️  No files were removed")
+            
+        except Exception as e:
+            print(f"Error cleaning up champion files: {e}")
+    
+    def _refresh_champion_data(self) -> None:
+        """Refresh champion data from Data Dragon API."""
+        try:
+            print("\n🔄 Refreshing champion data from Data Dragon API...")
+            
+            success = self.champion_data_manager.fetch_champion_list(force_refresh=True)
+            
+            if success:
+                print("✅ Champion data refreshed successfully")
+                
+                # Show updated info
+                cache_info = self.champion_data_manager.get_cache_info()
+                print(f"Champions loaded: {cache_info['champions_loaded']}")
+                print(f"Data Dragon version: {cache_info['data_dragon_version']}")
+            else:
+                print("❌ Failed to refresh champion data")
+                print("Check your internet connection and try again")
+            
+        except Exception as e:
+            print(f"Error refreshing champion data: {e}")
     
     def _run_system_diagnostics(self) -> None:
         """Run comprehensive system diagnostics."""
