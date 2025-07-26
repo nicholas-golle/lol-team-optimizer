@@ -8,6 +8,7 @@ based on match history and performance metrics.
 import logging
 import json
 import os
+import time
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 
@@ -219,8 +220,6 @@ class SynergyManager:
         Returns:
             True if collection was successful
         """
-        import time
-        
         self.logger.info("Starting comprehensive match history collection (up to 100 games per player)")
         self.logger.info("This process respects API rate limits and may take several minutes...")
         
@@ -289,7 +288,18 @@ class SynergyManager:
                         break
                 
                 except Exception as e:
-                    self.logger.warning(f"Error collecting matches for {player.name}: {e}")
+                    error_msg = str(e)
+                    if "400" in error_msg or "Bad Request" in error_msg:
+                        self.logger.warning(f"Invalid PUUID for {player.name}: {e}")
+                        self.logger.info(f"Suggestion: Update player data to refresh PUUID for {player.name}")
+                    elif "403" in error_msg or "Forbidden" in error_msg:
+                        self.logger.error(f"API key issue for {player.name}: {e}")
+                        self.logger.info("Suggestion: Check your Riot API key validity")
+                    elif "429" in error_msg or "rate limit" in error_msg.lower():
+                        self.logger.warning(f"Rate limit hit for {player.name}: {e}")
+                        self.logger.info("Suggestion: Wait and try again later")
+                    else:
+                        self.logger.warning(f"Error collecting matches for {player.name}: {e}")
                     break
         
         # Log collection summary
@@ -320,8 +330,6 @@ class SynergyManager:
         Returns:
             True if processing was successful
         """
-        import time
-        
         match_ids_list = list(match_ids)
         self.logger.info(f"Processing {len(match_ids_list)} matches for synergy analysis")
         
@@ -409,7 +417,15 @@ class SynergyManager:
         start_time = time.time()
         initial_synergy_count = len(self.synergy_db.synergies)
         
-        success = self.update_synergy_data_for_players(players, comprehensive=True)
+        try:
+            success = self.update_synergy_data_for_players(players, comprehensive=True)
+        except Exception as e:
+            self.logger.error(f"Error during comprehensive collection: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': f'Collection failed: {str(e)}',
+                'stats': {}
+            }
         
         end_time = time.time()
         duration = end_time - start_time

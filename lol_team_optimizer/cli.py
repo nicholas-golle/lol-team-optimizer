@@ -2369,6 +2369,19 @@ class CLI:
             print("\n❌ No players found. Add players first.")
             return
         
+        # Validate player PUUIDs
+        players_without_puuid = [p for p in players if not p.puuid]
+        if players_without_puuid:
+            print(f"\n⚠️  Warning: {len(players_without_puuid)} players missing PUUID:")
+            for player in players_without_puuid:
+                print(f"   • {player.name}")
+            print(f"\n💡 Suggestion: Run 'Update Player Data' to fetch PUUIDs before comprehensive collection")
+            
+            confirm = input(f"\nContinue anyway? (y/N): ").strip().lower()
+            if confirm not in ['y', 'yes']:
+                print("Collection cancelled.")
+                return
+        
         print(f"\n🔄 Starting comprehensive match history collection...")
         print(f"📊 This will collect up to 100 games per player ({len(players)} players)")
         print(f"⏱️  This process respects API rate limits and may take 10-30 minutes")
@@ -2381,11 +2394,17 @@ class CLI:
             return
         
         try:
-            import time
             start_time = time.time()
             
             print(f"\n🚀 Starting comprehensive collection...")
+            
+            # Add debug logging
+            self.logger.info(f"Starting comprehensive collection for {len(players)} players")
+            
             result = self.synergy_manager.collect_comprehensive_match_history(players)
+            
+            # Debug the result
+            self.logger.info(f"Collection result: {result}")
             
             end_time = time.time()
             duration_minutes = (end_time - start_time) / 60
@@ -2421,6 +2440,20 @@ class CLI:
                 print(f"\n❌ Comprehensive collection failed.")
                 if 'error' in result:
                     print(f"Error: {result['error']}")
+                
+                # Provide troubleshooting guidance
+                print(f"\n🔧 Troubleshooting:")
+                print(f"   • Verify your Riot API key is valid and not expired")
+                print(f"   • Check that players have valid PUUIDs (run 'Update Player Data' first)")
+                print(f"   • Ensure stable internet connection")
+                print(f"   • Try running 'Standard Update' first to test API connectivity")
+                
+                # Show any available stats
+                if 'stats' in result and result['stats']:
+                    stats = result['stats']
+                    print(f"\n📊 Partial Statistics:")
+                    print(f"   • Duration: {stats.get('duration_minutes', 0):.1f} minutes")
+                    print(f"   • Synergy pairs: {stats.get('final_synergy_pairs', 0)}")
                 
         except KeyboardInterrupt:
             print(f"\n\n⏹️  Collection interrupted by user")
