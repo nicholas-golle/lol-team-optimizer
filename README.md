@@ -6,11 +6,14 @@ A Python application that analyzes player data to determine optimal role assignm
 
 - **Intelligent Team Optimization**: Uses mathematical optimization algorithms to find the best role assignments
 - **Riot API Integration**: Fetches real player performance data from Riot Games API
+- **Advanced Synergy Analysis**: Analyzes player synergies based on actual match history and performance when playing together
+- **Champion Mastery Integration**: Considers champion pool depth and competency levels in optimization decisions
 - **Role Preference Management**: Allows players to set and update their role preferences
-- **Performance Analysis**: Analyzes individual player performance and team synergy
+- **Performance Analysis**: Analyzes individual player performance across multiple metrics (KDA, CS, vision, win rate)
+- **Champion Recommendations**: Provides champion suggestions for each role assignment with confidence scoring
 - **Offline Mode**: Works without API access using cached data and preferences
 - **Comprehensive Caching**: Reduces API calls and improves performance
-- **Detailed Explanations**: Provides reasoning behind optimization decisions
+- **Detailed Explanations**: Provides reasoning behind optimization decisions with performance breakdowns
 
 ## Quick Start
 
@@ -148,6 +151,17 @@ The application can be configured through environment variables:
 - `DEBUG`: Enable debug mode (default: false)
 - `MAX_MATCHES_TO_ANALYZE`: Number of recent matches to analyze (default: 20)
 
+## Documentation
+
+### Scoring System Documentation
+For information about how the system calculates scores and makes optimization decisions:
+- **[Scoring Quick Reference](SCORING_QUICK_REFERENCE.md)** - Quick guide to score ranges, meanings, and interpretation
+- **[Scoring Calculations Documentation](SCORING_CALCULATIONS.md)** - Comprehensive technical guide to all algorithms, formulas, and calculations
+
+### Additional Documentation
+- **[API Setup Guide](API_SETUP.md)** - How to obtain and configure your Riot API key
+- **[Setup Instructions](SETUP.md)** - Detailed installation and configuration guide
+
 ## Advanced Features
 
 ### System Maintenance
@@ -170,13 +184,30 @@ The application analyzes multiple performance metrics:
 - **Win Rate**: Success rate in specific roles
 - **Recent Form**: Performance trends over recent matches
 
-### Team Synergy
+### Team Synergy Analysis
 
-The optimizer considers how well players work together by analyzing:
+The system provides comprehensive synergy analysis based on actual match history:
 
-- Historical performance of player combinations
-- Role-specific synergies (e.g., jungle-mid coordination)
-- Communication and playstyle compatibility
+#### Data-Driven Synergy Scoring
+- **Match History Analysis**: Analyzes games where players played together on the same team
+- **Win Rate Tracking**: Calculates success rates for specific player combinations
+- **Role Combination Analysis**: Tracks performance for specific role pairings (e.g., Player A top + Player B jungle)
+- **Champion Synergy**: Identifies successful champion combinations between players
+
+#### Synergy Features
+- **Update Synergy Data**: Fetches recent match history to build comprehensive synergy database
+- **Player Synergy Analysis**: View best and worst teammates for individual players
+- **Team Synergy Reports**: Analyze synergy for groups of players with detailed breakdowns
+- **Historical Tracking**: Maintains persistent synergy data with temporal weighting for recent games
+
+#### Synergy Scoring Factors
+- **Overall Win Rate**: Success rate when playing together across all games
+- **Performance Metrics**: Combined KDA, vision score, and game impact when teamed
+- **Recency Weighting**: Recent games weighted more heavily than historical data
+- **Sample Size Confidence**: Larger game samples provide more reliable synergy scores
+- **Role-Specific Analysis**: Different synergy scores for different role combinations
+
+The synergy system transforms team optimization from theoretical role compatibility to data-driven analysis of actual player chemistry and performance.
 
 ## Troubleshooting
 
