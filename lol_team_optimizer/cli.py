@@ -849,6 +849,17 @@ class CLI:
         else:
             return "Poor"
     
+    def _get_competency_icon(self, competency_level: str) -> str:
+        """Get icon representing competency level."""
+        icons = {
+            "unknown": "❓",
+            "played": "🔵",     # Has played but not competent
+            "competent": "🟢",  # Competent
+            "good": "🟡",       # Good
+            "excellent": "🔴"   # Excellent
+        }
+        return icons.get(competency_level, "❓")
+    
     def _display_alternative_assignments(self, result: OptimizationResult) -> None:
         """Display alternative team assignments."""
         alternatives = self.optimizer.get_alternative_assignments(result, 3)
@@ -1072,24 +1083,27 @@ class CLI:
             print("-" * 20)
             print("1. View Individual Player Details")
             print("2. Champion Analysis Across All Players")
-            print("3. Role Suitability Analysis")
-            print("4. Champion Pool Comparison")
-            print("5. Back to Main Menu")
+            print("3. Champion Competency Analysis")
+            print("4. Role Suitability Analysis")
+            print("5. Champion Pool Comparison")
+            print("6. Back to Main Menu")
             
-            choice = input("\nEnter your choice (1-5): ").strip()
+            choice = input("\nEnter your choice (1-6): ").strip()
             
             if choice == "1":
                 self._view_individual_player_data()
             elif choice == "2":
                 self._champion_analysis_all_players()
             elif choice == "3":
-                self._role_suitability_analysis()
+                self._champion_competency_analysis()
             elif choice == "4":
-                self._champion_pool_comparison()
+                self._role_suitability_analysis()
             elif choice == "5":
+                self._champion_pool_comparison()
+            elif choice == "6":
                 break
             else:
-                print("Invalid choice. Please enter a number between 1-5.")
+                print("Invalid choice. Please enter a number between 1-6.")
     
     def _view_individual_player_data(self) -> None:
         """Display detailed data for a single player."""
@@ -1315,16 +1329,192 @@ class CLI:
             coverage_desc = "Excellent" if champion_count >= 20 else "Good" if champion_count >= 10 else "Limited"
             print(f"{role.capitalize()}: {champion_count} champions ({coverage_desc})")
         
-        # Team champion overlap
-        print(f"\nTeam Champion Overlap:")
-        print("-" * 22)
-        overlap_champions = [(champ_id, data) for champ_id, data in all_champions.items() 
-                           if len(data['players']) >= 2]
-        overlap_champions.sort(key=lambda x: len(x[1]['players']), reverse=True)
+        # Team champion overlap - competency focused
+        print(f"\nTeam Champion Overlap (Competency-Based):")
+        print("-" * 40)
         
-        for champ_id, data in overlap_champions[:10]:
-            player_names = [p['player'] for p in data['players']]
-            print(f"{data['name']}: {', '.join(player_names)}")
+        # Separate competent vs all overlaps
+        competent_overlaps = []
+        all_overlaps = []
+        
+        for champ_id, data in all_champions.items():
+            if len(data['players']) >= 2:
+                all_overlaps.append((champ_id, data))
+                
+                # Check if multiple players are competent with this champion
+                competent_players = []
+                for player in players:
+                    if champ_id in player.champion_masteries:
+                        mastery = player.champion_masteries[champ_id]
+                        if mastery.is_competent():
+                            competent_players.append({
+                                'player': player.name,
+                                'level': mastery.competency_level,
+                                'mastery_level': mastery.mastery_level,
+                                'points': mastery.mastery_points
+                            })
+                
+                if len(competent_players) >= 2:
+                    competent_overlaps.append((champ_id, data['name'], competent_players))
+        
+        # Show competent overlaps first
+        if competent_overlaps:
+            print(f"\n🏆 Competent Champion Overlaps:")
+            competent_overlaps.sort(key=lambda x: len(x[2]), reverse=True)
+            
+            for champ_id, champ_name, competent_players in competent_overlaps[:8]:
+                print(f"   {champ_name}:")
+                for player_data in competent_players:
+                    icon = self._get_competency_icon(player_data['level'])
+                    print(f"      • {player_data['player']} {icon} (L{player_data['mastery_level']}, {player_data['points']:,} pts)")
+        else:
+            print(f"\n📝 No competent champion overlaps found.")
+        
+        # Summary statistics
+        print(f"\n📊 Overlap Summary:")
+        print(f"   • Total champion overlaps: {len(all_overlaps)}")
+        print(f"   • Competent overlaps: {len(competent_overlaps)}")
+        
+        if len(all_overlaps) > 0:
+            competency_percentage = len(competent_overlaps) / len(all_overlaps) * 100
+            print(f"   • Competency rate: {competency_percentage:.1f}%")
+            
+            if competency_percentage < 25:
+                print(f"   💡 Focus: Develop competency with shared champions")
+            elif competency_percentage < 50:
+                print(f"   💡 Status: Building good champion competency foundation")
+            else:
+                print(f"   💡 Status: Strong competent champion overlap!")
+        
+        # Show most valuable overlaps (high competency + multiple players)
+        if competent_overlaps:
+            print(f"\n🎯 Most Valuable Champion Overlaps:")
+            
+            # Score overlaps by competency level and player count
+            scored_overlaps = []
+            for champ_id, champ_name, competent_players in competent_overlaps:
+                competency_score = 0
+                for player_data in competent_players:
+                    level_scores = {'competent': 1, 'good': 2, 'excellent': 3}
+                    competency_score += level_scores.get(player_data['level'], 0)
+                
+                total_score = competency_score * len(competent_players)
+                scored_overlaps.append((champ_name, competent_players, total_score))
+            
+            scored_overlaps.sort(key=lambda x: x[2], reverse=True)
+            
+            for champ_name, competent_players, score in scored_overlaps[:5]:
+                player_names = [p['player'] for p in competent_players]
+                print(f"   {champ_name}: {', '.join(player_names)} (Score: {score})")
+    
+    def _champion_competency_analysis(self) -> None:
+        """Analyze champion competency distribution across all players."""
+        players = self.data_manager.load_player_data()
+        if not players:
+            print("No players found.")
+            return
+        
+        print("\n" + "=" * 50)
+        print("CHAMPION COMPETENCY ANALYSIS")
+        print("=" * 50)
+        
+        # Competency distribution
+        competency_stats = {
+            'excellent': 0,
+            'good': 0,
+            'competent': 0,
+            'played': 0,
+            'total': 0
+        }
+        
+        player_competency = {}
+        
+        for player in players:
+            player_stats = {'excellent': 0, 'good': 0, 'competent': 0, 'played': 0}
+            
+            for mastery in player.champion_masteries.values():
+                level = mastery.competency_level
+                if level in player_stats:
+                    player_stats[level] += 1
+                    competency_stats[level] += 1
+                competency_stats['total'] += 1
+            
+            player_competency[player.name] = player_stats
+        
+        # Overall competency distribution
+        print(f"\n📊 Overall Competency Distribution:")
+        print("-" * 35)
+        
+        if competency_stats['total'] > 0:
+            for level in ['excellent', 'good', 'competent', 'played']:
+                count = competency_stats[level]
+                percentage = count / competency_stats['total'] * 100
+                bar = "█" * min(int(percentage / 2), 50)
+                icon = self._get_competency_icon(level)
+                print(f"{level.capitalize():>10} {icon}: {count:4} ({percentage:5.1f}%) {bar}")
+        
+        # Player competency breakdown
+        print(f"\n👥 Player Competency Breakdown:")
+        print("-" * 32)
+        
+        # Header
+        header = f"{'Player':<15} | {'Excellent':<9} | {'Good':<6} | {'Competent':<9} | {'Played':<6} | {'Total':<5}"
+        print(header)
+        print("-" * len(header))
+        
+        for player_name, stats in player_competency.items():
+            total = sum(stats.values())
+            row = f"{player_name:<15} | {stats['excellent']:>9} | {stats['good']:>6} | {stats['competent']:>9} | {stats['played']:>6} | {total:>5}"
+            print(row)
+        
+        # Competency quality analysis
+        print(f"\n🎯 Competency Quality Analysis:")
+        print("-" * 30)
+        
+        for player_name, stats in player_competency.items():
+            total = sum(stats.values())
+            if total > 0:
+                competent_total = stats['excellent'] + stats['good'] + stats['competent']
+                competency_rate = competent_total / total * 100
+                
+                quality_score = (stats['excellent'] * 3 + stats['good'] * 2 + stats['competent'] * 1) / total
+                
+                print(f"{player_name}:")
+                print(f"   • Competency rate: {competency_rate:.1f}% ({competent_total}/{total})")
+                print(f"   • Quality score: {quality_score:.2f}/3.0")
+                
+                if competency_rate < 30:
+                    print(f"   💡 Focus: Develop competency with more champions")
+                elif competency_rate < 60:
+                    print(f"   💡 Status: Good foundation, continue building mastery")
+                else:
+                    print(f"   💡 Status: Excellent champion competency!")
+        
+        # Role-specific competency analysis
+        print(f"\n🎮 Role-Specific Competency:")
+        print("-" * 28)
+        
+        for role in self.roles:
+            role_competency = {'excellent': 0, 'good': 0, 'competent': 0, 'total': 0}
+            
+            for player in players:
+                competent_champs = player.get_competent_champions_for_role(role, count=20)
+                for mastery in competent_champs:
+                    level = mastery.competency_level
+                    if level in role_competency:
+                        role_competency[level] += 1
+                    role_competency['total'] += 1
+            
+            if role_competency['total'] > 0:
+                excellent_pct = role_competency['excellent'] / role_competency['total'] * 100
+                good_pct = role_competency['good'] / role_competency['total'] * 100
+                
+                print(f"{role.capitalize()}:")
+                print(f"   • Total competent champions: {role_competency['total']}")
+                print(f"   • Excellent: {role_competency['excellent']} ({excellent_pct:.1f}%)")
+                print(f"   • Good: {role_competency['good']} ({good_pct:.1f}%)")
+            else:
+                print(f"{role.capitalize()}: No competent champions found")
     
     def _role_suitability_analysis(self) -> None:
         """Analyze role suitability across all players."""
@@ -1452,30 +1642,123 @@ class CLI:
             bar = "█" * min(count // 2, 50)  # Scale bar
             print(f"Level {level}: {count:3} {bar}")
         
-        # Champion overlap analysis
-        print(f"\nChampion Overlap Analysis:")
-        print("-" * 27)
+        # Champion overlap analysis - focusing on competent champions only
+        print(f"\nChampion Overlap Analysis (Competent Champions Only):")
+        print("-" * 50)
         
-        # Find champions that multiple players have
-        champion_players = {}
+        # Find champions that multiple players are competent with
+        competent_champion_players = {}
+        played_champion_players = {}
+        
         for player in players:
             for champion_id, mastery in player.champion_masteries.items():
-                if champion_id not in champion_players:
-                    champion_players[champion_id] = {
+                # Only consider competent champions for main analysis
+                if mastery.is_competent():
+                    if champion_id not in competent_champion_players:
+                        competent_champion_players[champion_id] = {
+                            'name': mastery.champion_name,
+                            'players': [],
+                            'competency_levels': []
+                        }
+                    competent_champion_players[champion_id]['players'].append(player.name)
+                    competent_champion_players[champion_id]['competency_levels'].append(mastery.competency_level)
+                
+                # Track all played champions for comparison
+                if champion_id not in played_champion_players:
+                    played_champion_players[champion_id] = {
                         'name': mastery.champion_name,
                         'players': []
                     }
-                champion_players[champion_id]['players'].append(player.name)
+                played_champion_players[champion_id]['players'].append(player.name)
         
-        # Show champions with most overlap
-        overlap_champions = [(data['name'], data['players']) 
-                           for data in champion_players.values() 
-                           if len(data['players']) >= 2]
-        overlap_champions.sort(key=lambda x: len(x[1]), reverse=True)
+        # Show competent champion overlaps
+        competent_overlaps = [(data['name'], data['players'], data['competency_levels']) 
+                             for data in competent_champion_players.values() 
+                             if len(data['players']) >= 2]
+        competent_overlaps.sort(key=lambda x: len(x[1]), reverse=True)
         
-        print(f"\nMost Shared Champions:")
-        for champ_name, player_list in overlap_champions[:10]:
-            print(f"{champ_name}: {len(player_list)} players ({', '.join(player_list)})")
+        if competent_overlaps:
+            print(f"\n🏆 Competent Champion Overlaps:")
+            for champ_name, player_list, competency_levels in competent_overlaps[:10]:
+                # Show competency levels with icons
+                player_competency = []
+                for i, player in enumerate(player_list):
+                    level = competency_levels[i]
+                    icon = self._get_competency_icon(level)
+                    player_competency.append(f"{player} {icon}")
+                
+                print(f"   {champ_name}: {len(player_list)} players")
+                print(f"      └─ {', '.join(player_competency)}")
+        else:
+            print(f"\n📝 No competent champion overlaps found.")
+            print(f"    Players may need to develop stronger champion proficiency.")
+        
+        # Show comparison with all played champions
+        all_overlaps = [(data['name'], data['players']) 
+                       for data in played_champion_players.values() 
+                       if len(data['players']) >= 2]
+        all_overlaps.sort(key=lambda x: len(x[1]), reverse=True)
+        
+        print(f"\n📊 Comparison - All Played Champions:")
+        print(f"   • Competent overlaps: {len(competent_overlaps)} champions")
+        print(f"   • Total overlaps: {len(all_overlaps)} champions")
+        
+        if len(all_overlaps) > 0:
+            competency_ratio = len(competent_overlaps) / len(all_overlaps) * 100
+            print(f"   • Competency ratio: {competency_ratio:.1f}%")
+            
+            if competency_ratio < 30:
+                print(f"   💡 Suggestion: Focus on developing competency with shared champions")
+            elif competency_ratio < 60:
+                print(f"   💡 Suggestion: Good foundation, continue building champion mastery")
+            else:
+                print(f"   💡 Status: Excellent champion competency overlap!")
+        
+        # Show top shared champions by competency level
+        if competent_overlaps:
+            print(f"\n🎯 Top Shared Champions by Competency:")
+            
+            # Group by competency level
+            excellent_overlaps = [x for x in competent_overlaps if 'excellent' in x[2]]
+            good_overlaps = [x for x in competent_overlaps if 'good' in x[2] and 'excellent' not in x[2]]
+            
+            if excellent_overlaps:
+                print(f"   🔴 Excellent Level:")
+                for champ_name, player_list, _ in excellent_overlaps[:3]:
+                    print(f"      • {champ_name}: {', '.join(player_list)}")
+            
+            if good_overlaps:
+                print(f"   🟡 Good Level:")
+                for champ_name, player_list, _ in good_overlaps[:3]:
+                    print(f"      • {champ_name}: {', '.join(player_list)}")
+        
+        # Role-specific competent overlaps
+        print(f"\n🎮 Role-Specific Competent Overlaps:")
+        for role in self.roles:
+            role_overlaps = {}
+            
+            for player in players:
+                competent_champs = player.get_competent_champions_for_role(role, count=10)
+                for mastery in competent_champs:
+                    if mastery.champion_id not in role_overlaps:
+                        role_overlaps[mastery.champion_id] = {
+                            'name': mastery.champion_name,
+                            'players': []
+                        }
+                    role_overlaps[mastery.champion_id]['players'].append(player.name)
+            
+            # Find overlaps for this role
+            role_shared = [(data['name'], data['players']) 
+                          for data in role_overlaps.values() 
+                          if len(data['players']) >= 2]
+            role_shared.sort(key=lambda x: len(x[1]), reverse=True)
+            
+            if role_shared:
+                print(f"   {role.capitalize()}: {len(role_shared)} shared champions")
+                for champ_name, player_list in role_shared[:2]:  # Top 2 per role
+                    print(f"      • {champ_name}: {', '.join(player_list)}")
+            else:
+                print(f"   {role.capitalize()}: No competent overlaps")
     
     def _display_detailed_player_info(self, player: Player) -> None:
         """Display comprehensive information about a player."""
