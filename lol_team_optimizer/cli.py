@@ -2280,30 +2280,38 @@ class CLI:
             print("\n" + "=" * 50)
             print("SYNERGY ANALYSIS")
             print("=" * 50)
-            print("1. Update Synergy Data")
+            print("1. Update Synergy Data (Standard)")
             print("   └─ Analyze recent matches to build synergy database")
-            print("2. View Player Synergies")
+            print("2. Comprehensive Match History Collection")
+            print("   └─ Collect extensive match history (up to 100 games per player)")
+            print("3. Optimized Synergy Collection")
+            print("   └─ Smart collection focusing on shared matches between players")
+            print("4. View Player Synergies")
             print("   └─ See synergy analysis for a specific player")
-            print("3. Team Synergy Report")
+            print("5. Team Synergy Report")
             print("   └─ Analyze synergy for a group of players")
-            print("4. Synergy Database Summary")
+            print("6. Synergy Database Summary")
             print("   └─ View overall synergy database statistics")
-            print("5. Back to Main Menu")
+            print("7. Back to Main Menu")
             
-            choice = input("\nEnter your choice (1-5): ").strip()
+            choice = input("\nEnter your choice (1-7): ").strip()
             
             if choice == "1":
                 self._update_synergy_data()
             elif choice == "2":
-                self._view_player_synergies()
+                self._comprehensive_match_history_collection()
             elif choice == "3":
-                self._team_synergy_report()
+                self._optimized_synergy_collection()
             elif choice == "4":
-                self._synergy_database_summary()
+                self._view_player_synergies()
             elif choice == "5":
+                self._team_synergy_report()
+            elif choice == "6":
+                self._synergy_database_summary()
+            elif choice == "7":
                 break
             else:
-                print("\nInvalid choice. Please enter a number between 1-5.")
+                print("\nInvalid choice. Please enter a number between 1-7.")
     
     def _update_synergy_data(self) -> None:
         """Update synergy data by analyzing recent matches."""
@@ -2348,6 +2356,162 @@ class CLI:
         except Exception as e:
             print(f"\n❌ Error updating synergy data: {e}")
             self.logger.error(f"Synergy data update failed: {e}", exc_info=True)
+    
+    def _comprehensive_match_history_collection(self) -> None:
+        """Collect comprehensive match history for all players."""
+        if not self.api_available:
+            print("\n❌ API not available - cannot collect match history")
+            print("Comprehensive collection requires Riot API access to fetch extensive match data.")
+            return
+        
+        players = self.data_manager.load_player_data()
+        if not players:
+            print("\n❌ No players found. Add players first.")
+            return
+        
+        print(f"\n🔄 Starting comprehensive match history collection...")
+        print(f"📊 This will collect up to 100 games per player ({len(players)} players)")
+        print(f"⏱️  This process respects API rate limits and may take 10-30 minutes")
+        print(f"🎯 Focus: Finding shared matches between players for accurate synergy analysis")
+        
+        # Confirm with user
+        confirm = input(f"\nProceed with comprehensive collection? (y/N): ").strip().lower()
+        if confirm not in ['y', 'yes']:
+            print("Collection cancelled.")
+            return
+        
+        try:
+            import time
+            start_time = time.time()
+            
+            print(f"\n🚀 Starting comprehensive collection...")
+            result = self.synergy_manager.collect_comprehensive_match_history(players)
+            
+            end_time = time.time()
+            duration_minutes = (end_time - start_time) / 60
+            
+            if result['success']:
+                stats = result['stats']
+                print(f"\n✅ Comprehensive collection completed successfully!")
+                
+                print(f"\n📊 Collection Statistics:")
+                print(f"   • Duration: {stats['duration_minutes']:.1f} minutes")
+                print(f"   • Synergy pairs analyzed: {stats['final_synergy_pairs']}")
+                print(f"   • New synergy pairs found: {stats['new_synergy_pairs']}")
+                print(f"   • Pairs with match data: {stats['synergies_with_data']}")
+                print(f"   • High confidence pairs (10+ games): {stats['high_confidence_synergies']}")
+                print(f"   • Average games together: {stats['average_games_together']:.1f}")
+                print(f"   • Data coverage: {stats['data_coverage_percent']:.1f}%")
+                
+                if result['recommendations']:
+                    print(f"\n💡 Recommendations:")
+                    for rec in result['recommendations']:
+                        print(f"   • {rec}")
+                
+                # Show top synergy pairs if available
+                synergy_db = self.synergy_manager.get_synergy_database()
+                summary = synergy_db.export_synergy_summary()
+                
+                if summary['top_synergy_pairs']:
+                    print(f"\n🏆 Top Synergy Pairs Found:")
+                    for i, pair in enumerate(summary['top_synergy_pairs'][:5], 1):
+                        players_str = " + ".join(pair['players'])
+                        print(f"   {i}. {players_str}: {pair['synergy_score']:+.2f} ({pair['games']} games, {pair['win_rate']:.1%} WR)")
+            else:
+                print(f"\n❌ Comprehensive collection failed.")
+                if 'error' in result:
+                    print(f"Error: {result['error']}")
+                
+        except KeyboardInterrupt:
+            print(f"\n\n⏹️  Collection interrupted by user")
+            print(f"⚠️  Partial data may have been collected and saved")
+        except Exception as e:
+            print(f"\n❌ Error during comprehensive collection: {e}")
+            self.logger.error(f"Comprehensive collection failed: {e}", exc_info=True)
+    
+    def _optimized_synergy_collection(self) -> None:
+        """Run optimized synergy collection focusing on shared matches."""
+        if not self.api_available:
+            print("\n❌ API not available - cannot collect match history")
+            print("Optimized collection requires Riot API access to analyze shared matches.")
+            return
+        
+        players = self.data_manager.load_player_data()
+        if not players:
+            print("\n❌ No players found. Add players first.")
+            return
+        
+        if len(players) < 2:
+            print("\n❌ Need at least 2 players for synergy analysis.")
+            return
+        
+        print(f"\n🎯 Starting optimized synergy collection...")
+        print(f"📊 This analyzes shared matches between {len(players)} players")
+        print(f"⚡ Focuses collection on player pairs needing more synergy data")
+        print(f"⏱️  More efficient than comprehensive collection")
+        
+        try:
+            print(f"\n🔍 Analyzing current shared match data...")
+            result = self.synergy_manager.optimize_synergy_data_collection(players)
+            
+            if 'error' in result:
+                print(f"\n❌ Analysis failed: {result['error']}")
+                return
+            
+            if result['success']:
+                if 'message' in result:
+                    # No additional collection needed
+                    print(f"\n✅ {result['message']}")
+                    analysis = result['analysis']
+                    
+                    print(f"\n📊 Current Shared Match Analysis:")
+                    print(f"   • Total unique matches across all players: {analysis['total_unique_matches']}")
+                    print(f"   • Matches with multiple tracked players: {analysis['total_shared_matches']}")
+                    print(f"   • Shared match percentage: {analysis['shared_match_percentage']:.1f}%")
+                    
+                    if analysis['shared_analysis']:
+                        print(f"\n🔗 Player Pair Analysis:")
+                        for pair, data in list(analysis['shared_analysis'].items())[:5]:  # Show top 5
+                            print(f"   {pair}: {data['shared_matches']} shared matches ({data['overlap_percentage']:.1f}% overlap)")
+                    
+                    if analysis['recommendations']:
+                        print(f"\n💡 Recommendations:")
+                        for rec in analysis['recommendations']:
+                            print(f"   • {rec}")
+                
+                else:
+                    # Additional collection was performed
+                    print(f"\n✅ Optimized collection completed successfully!")
+                    
+                    initial = result['initial_analysis']
+                    updated = result['updated_analysis']
+                    
+                    print(f"\n📊 Collection Results:")
+                    print(f"   • Players updated: {result['players_updated']}")
+                    print(f"   • Player pairs improved: {result['pairs_improved']}")
+                    print(f"   • Shared matches before: {initial['total_shared_matches']}")
+                    print(f"   • Shared matches after: {updated['total_shared_matches']}")
+                    print(f"   • Improvement: +{updated['total_shared_matches'] - initial['total_shared_matches']} shared matches")
+                    
+                    if updated['recommendations']:
+                        print(f"\n💡 Updated Recommendations:")
+                        for rec in updated['recommendations']:
+                            print(f"   • {rec}")
+            else:
+                print(f"\n❌ Optimized collection failed.")
+                if 'error' in result:
+                    print(f"Error: {result['error']}")
+                
+                # Still show initial analysis if available
+                if 'initial_analysis' in result:
+                    analysis = result['initial_analysis']
+                    print(f"\n📊 Initial Analysis (before failed collection):")
+                    print(f"   • Total shared matches: {analysis['total_shared_matches']}")
+                    print(f"   • Shared match percentage: {analysis['shared_match_percentage']:.1f}%")
+                
+        except Exception as e:
+            print(f"\n❌ Error during optimized collection: {e}")
+            self.logger.error(f"Optimized collection failed: {e}", exc_info=True)
     
     def _view_player_synergies(self) -> None:
         """View synergy analysis for a specific player."""

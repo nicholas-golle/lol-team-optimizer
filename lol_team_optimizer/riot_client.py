@@ -319,7 +319,7 @@ class RiotAPIClient:
             **summoner_data
         }
     
-    def get_match_history(self, puuid: str, count: int = 20, queue: Optional[int] = None) -> List[str]:
+    def get_match_history(self, puuid: str, count: int = 20, queue: Optional[int] = None, start: int = 0) -> List[str]:
         """
         Fetch match history for a player, filtered for Summoner's Rift games.
         
@@ -327,12 +327,16 @@ class RiotAPIClient:
             puuid: Player's PUUID
             count: Number of matches to retrieve (max 100)
             queue: Queue ID to filter by (optional, defaults to Summoner's Rift queues)
+            start: Starting index for pagination (default 0)
             
         Returns:
             List of match IDs from Summoner's Rift games
         """
         endpoint = f"/lol/match/v5/matches/by-puuid/{puuid}/ids"
-        params = {"count": min(count, 100)}
+        params = {
+            "count": min(count, 100),
+            "start": start
+        }
         
         if queue is not None:
             params["queue"] = queue
