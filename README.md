@@ -1,69 +1,68 @@
 # League of Legends Team Optimizer
 
-A Python application that analyzes player data to determine optimal role assignments for League of Legends teams. The system integrates with the Riot Games API to fetch performance data and combines it with user preferences to make data-driven team composition decisions.
+A streamlined Python application that analyzes player data to determine optimal role assignments for League of Legends teams. The system features a simplified 4-option interface that consolidates all functionality into intuitive workflows while maintaining powerful optimization capabilities.
 
 ## Features
 
-- **Intelligent Team Optimization**: Uses mathematical optimization algorithms to find the best role assignments
-- **Riot API Integration**: Fetches real player performance data from Riot Games API
-- **Advanced Synergy Analysis**: Analyzes player synergies based on actual match history and performance when playing together
-- **Champion Mastery Integration**: Considers champion pool depth and competency levels in optimization decisions
-- **Role Preference Management**: Allows players to set and update their role preferences
-- **Performance Analysis**: Analyzes individual player performance across multiple metrics (KDA, CS, vision, win rate)
-- **Champion Recommendations**: Provides champion suggestions for each role assignment with confidence scoring
-- **Offline Mode**: Works without API access using cached data and preferences
-- **Comprehensive Caching**: Reduces API calls and improves performance
-- **Detailed Explanations**: Provides reasoning behind optimization decisions with performance breakdowns
+### 🎯 Streamlined Interface
+- **4-Option Menu**: Quick Optimize, Manage Players, View Analysis, and Settings
+- **Smart Workflows**: Integrated processes that handle player selection and data fetching automatically
+- **Intelligent Defaults**: Automatic data enhancement and preference management
+- **One-Click Optimization**: Complete team optimization with minimal user input
+
+### 🚀 Core Capabilities
+- **Advanced Team Optimization**: Mathematical algorithms find optimal role assignments
+- **Riot API Integration**: Real-time player performance data from Riot Games API
+- **Champion Mastery Analysis**: Deep champion pool and competency evaluation
+- **Team Synergy Scoring**: Data-driven analysis of player chemistry and performance
+- **Performance Analytics**: Multi-metric analysis (KDA, CS, vision, win rate, trends)
+- **Champion Recommendations**: AI-powered champion suggestions with confidence scoring
+- **Offline Mode**: Full functionality using cached data and preferences
+- **Smart Caching**: Optimized API usage with intelligent data retention
 
 ## Quick Start
 
-### Option 1: Google Colab (Recommended for Quick Start)
+### 🚀 Streamlined Workflow (3 Steps)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicholas-golle/lol-team-optimizer/blob/main/LoL_Team_Optimizer_Colab.ipynb)
-
-1. Click the "Open in Colab" button above
-2. Run the setup cell to install dependencies
-3. Enter your Riot API key when prompted
-4. Start optimizing teams!
-
-### Option 2: Local Installation
-
-#### Prerequisites
-
-- Python 3.8 or higher
-- Riot Games API key (optional, for enhanced features)
-
-#### Installation
-
-1. **Clone the repository**:
+1. **Install and Run**:
    ```bash
    git clone <repository-url>
    cd lol-team-optimizer
-   ```
-
-2. **Install dependencies**:
-   ```bash
    pip install -r requirements.txt
-   ```
-
-3. **Set up your Riot API key** (optional but recommended):
-   ```bash
-   # On Windows
-   set RIOT_API_KEY=your_api_key_here
-   
-   # On macOS/Linux
-   export RIOT_API_KEY=your_api_key_here
-   ```
-   
-   Or create a `.env` file in the project root:
-   ```
-   RIOT_API_KEY=your_api_key_here
-   ```
-
-4. **Run the application**:
-   ```bash
    python main.py
    ```
+
+2. **Add Players**: Use option 2 or quick action 'a' to add your team members
+3. **Optimize**: Use option 1 for instant team optimization with smart defaults
+
+### 📱 Alternative: Jupyter Notebook
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nicholas-golle/lol-team-optimizer/blob/main/LoL_Team_Optimizer_Colab.ipynb)
+
+The simplified notebook interface provides the same core functionality with notebook-optimized display and single-cell setup.
+
+### ⚙️ Prerequisites
+
+- **Python**: 3.8 or higher
+- **API Key**: Optional but recommended for enhanced features ([Get yours here](https://developer.riotgames.com/))
+
+### 🔑 API Key Setup (Optional)
+
+Create a `.env` file in the project root:
+```
+RIOT_API_KEY=RGAPI-your-key-here
+```
+
+Or set as environment variable:
+```bash
+# Windows
+set RIOT_API_KEY=RGAPI-your-key-here
+
+# macOS/Linux  
+export RIOT_API_KEY=RGAPI-your-key-here
+```
+
+**Note**: The application works in offline mode without an API key, using cached data and preferences.
 
 ## Getting Your Riot API Key
 
@@ -74,54 +73,64 @@ A Python application that analyzes player data to determine optimal role assignm
 
 **Note**: The application can run without an API key in offline mode, but you'll miss out on real-time performance data and player validation features.
 
-## Usage Guide
+## Streamlined Interface Guide
 
-### Main Menu Options
+### 🎯 4-Option Main Menu
 
-When you start the application, you'll see the main menu with these options:
+The new streamlined interface consolidates all functionality into 4 intuitive options:
 
-1. **Manage Players** - Add, remove, or update player information
-2. **Manage Preferences** - Set role preferences for players
-3. **Optimize Team** - Run team optimization and see results
-4. **View Player Data** - Display detailed player information
-5. **System Maintenance** - Cache management and system utilities
-6. **Exit** - Close the application
+#### 1. 🎯 Quick Optimize
+**One-click team optimization with smart automation**
+- Automatically selects best players based on data quality
+- Handles missing data and preferences inline
+- Provides comprehensive results with champion recommendations
+- Offers follow-up actions like alternatives and detailed analysis
 
-### Adding Players
+#### 2. 👥 Manage Players  
+**Consolidated player management in one place**
+- Add new players with automatic API data fetching
+- Edit existing players and update preferences
+- Remove players or perform bulk operations
+- View detailed player statistics and data completeness
 
-1. Select "Manage Players" from the main menu
-2. Choose "Add New Player"
-3. Enter the player's name and Riot ID (e.g., "PlayerName#NA1")
-4. The system will validate the Riot ID if API is available
-5. Set initial role preferences (1-5 scale, where 5 is most preferred)
+#### 3. 📊 View Analysis
+**Comprehensive insights and team analytics**
+- Team overview and optimization readiness assessment
+- Individual player analysis and role suitability comparisons
+- Champion pool analysis across all players
+- Team synergy analysis with performance data
+- Historical trends and improvement recommendations
 
-### Setting Role Preferences
+#### 4. ⚙️ Settings
+**System configuration and maintenance**
+- API connectivity testing and diagnostics
+- Cache management and data refresh utilities
+- System health checks and troubleshooting
+- Export capabilities and backup options
 
-Role preferences help the optimizer understand which positions players prefer:
+### ⚡ Quick Actions
 
-- **5**: Strongly prefer this role
-- **4**: Like this role
-- **3**: Neutral about this role
-- **2**: Dislike this role
-- **1**: Strongly dislike this role
+From the main menu, use these shortcuts:
+- **'a'** - Quick add player
+- **'o'** - Quick optimize
+- **'h'** - Help and detailed guide
 
-### Running Team Optimization
+### 🚀 Typical Workflow
 
-1. Ensure you have at least 5 players in the system
-2. Select "Optimize Team" from the main menu
-3. Choose which players to include (if you have more than 5)
-4. Review the optimization results
-5. Optionally view alternative team compositions
+1. **First Time**: Add 5+ players using option 2 or quick action 'a'
+2. **Optimize**: Use option 1 for instant team optimization
+3. **Analyze**: Use option 3 for detailed insights and comparisons
+4. **Maintain**: Use option 4 for system health and updates
 
-### Understanding Results
+### 📊 Understanding Results
 
-The optimization results show:
-
-- **Role Assignments**: Which player is assigned to each role
-- **Total Score**: Overall team composition score
-- **Individual Scores**: Performance score for each player in their assigned role
-- **Detailed Analysis**: Explanation of why assignments were made
+Optimization results include:
+- **Role Assignments**: Optimal player-to-role mapping
+- **Performance Scores**: Individual and team performance metrics
+- **Champion Recommendations**: Top 3 champions per role with mastery data
+- **Team Synergy**: Data-driven chemistry analysis
 - **Alternative Compositions**: Other viable team setups
+- **Detailed Explanations**: AI-powered reasoning for decisions
 
 ## Configuration
 
@@ -153,14 +162,19 @@ The application can be configured through environment variables:
 
 ## Documentation
 
-### Scoring System Documentation
-For information about how the system calculates scores and makes optimization decisions:
-- **[Scoring Quick Reference](SCORING_QUICK_REFERENCE.md)** - Quick guide to score ranges, meanings, and interpretation
-- **[Scoring Calculations Documentation](SCORING_CALCULATIONS.md)** - Comprehensive technical guide to all algorithms, formulas, and calculations
+### 📚 Getting Started
+- **[Quick Start Guide](QUICK_START_GUIDE.md)** - Get up and running in 5 minutes with the streamlined interface
+- **[Menu Examples](MENU_EXAMPLES.md)** - Detailed examples and use cases for each of the 4 main menu options
+- **[Setup Instructions](SETUP.md)** - Comprehensive installation and configuration guide
+- **[API Setup Guide](API_SETUP.md)** - Unified API key configuration for the streamlined interface
 
-### Additional Documentation
-- **[API Setup Guide](API_SETUP.md)** - How to obtain and configure your Riot API key
-- **[Setup Instructions](SETUP.md)** - Detailed installation and configuration guide
+### 🔧 Usage and Troubleshooting
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions for the streamlined interface
+- **[Notebook Usage](NOTEBOOK_USAGE.md)** - Simplified Jupyter/Colab interface guide
+
+### 📊 Technical Documentation
+- **[Scoring Quick Reference](SCORING_QUICK_REFERENCE.md)** - Score ranges, meanings, and interpretation
+- **[Scoring Calculations](SCORING_CALCULATIONS.md)** - Technical guide to algorithms and formulas
 
 ## Advanced Features
 
@@ -211,52 +225,51 @@ The synergy system transforms team optimization from theoretical role compatibil
 
 ## Troubleshooting
 
-### Common Issues
+### 🚨 Quick Solutions
 
-**"API key not found" or running in offline mode**
-- Set your `RIOT_API_KEY` environment variable
-- Verify the API key is valid and not expired
-- Check your internet connection
-
-**"Permission denied" errors**
-- Ensure the application has write permissions to the data directory
-- Try running as administrator (Windows) or with sudo (macOS/Linux)
-
-**"Rate limit exceeded" errors**
-- Wait a few minutes before making more API requests
-- The application automatically handles rate limiting with backoff
+**System shows "API: ⚠️ Offline"**
+- Check your `.env` file contains `RIOT_API_KEY=RGAPI-your-key-here`
+- Verify API key is valid at [developer.riotgames.com](https://developer.riotgames.com/)
+- Test connectivity in Settings → System Diagnostics
 
 **"No players found" or insufficient players**
-- Add at least 5 players to the system
-- Verify player Riot IDs are correct
-- Check that player data was saved properly
+- Add players using option 2 (Manage Players) or quick action 'a'
+- Ensure Riot IDs use format `gameName#tagLine`
+- Check system status shows players were saved successfully
 
-### Debug Mode
+**Poor optimization results**
+- Set custom role preferences for key players
+- Refresh player data to get latest performance metrics
+- Ensure players have recent match history for accurate analysis
 
-Enable debug mode for detailed logging:
+**Application runs slowly**
+- Clear cache in Settings → Cache Management
+- Reduce cache size in configuration
+- Check available system memory and close other applications
 
-```bash
-# Set environment variable
-export DEBUG=true
+### 🔧 Advanced Troubleshooting
 
-# Or add to .env file
+For comprehensive troubleshooting including installation issues, API problems, and performance optimization, see the **[Troubleshooting Guide](TROUBLESHOOTING.md)**.
+
+### 📊 Debug Mode
+
+Enable detailed logging by adding to your `.env` file:
+```
 DEBUG=true
+LOG_LEVEL=DEBUG
 ```
 
-Debug mode provides:
-- Detailed operation logging
-- Performance metrics
+This provides:
+- Detailed operation logging and performance metrics
+- API request/response information
 - Error context and stack traces
-- API request/response logging
+- System diagnostics and health information
 
-### Log Files
+### 📁 Log Files
 
-The application creates several log files in the `data/logs/` directory:
-
-- `app.log`: General application logs
-- `errors.log`: Detailed error information
-- `performance.log`: Performance metrics
-- `user_actions.log`: User interaction tracking
+Check `data/logs/` directory for:
+- `app.log`: General application activity
+- `errors.log`: Detailed error information and stack traces
 - `debug.log`: Verbose debug information (debug mode only)
 
 ## API Rate Limits

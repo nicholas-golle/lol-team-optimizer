@@ -2,104 +2,78 @@
 
 ## Overview
 
-The League of Legends Team Optimizer is a Python application that uses mathematical optimization to determine the best role assignments for a team of 5 players. The system combines data from the Riot Games API with user-provided preferences to solve a constrained assignment problem, maximizing overall team performance while ensuring each role is filled exactly once.
+The streamlined League of Legends Team Optimizer consolidates multiple redundant interfaces into a single, unified CLI experience. The redesign eliminates menu depth, integrates workflows, and removes code duplication while maintaining all core optimization capabilities. The system provides a simplified 4-option main menu with intelligent defaults and inline functionality.
 
 ## Architecture
 
-The application follows a modular architecture with clear separation of concerns:
+The streamlined architecture consolidates interfaces and eliminates redundancy:
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   CLI Interface │    │  Data Manager   │    │ Riot API Client │
-│                 │    │                 │    │                 │
-│ - User Input    │◄──►│ - Player Data   │◄──►│ - API Calls     │
-│ - Results       │    │ - Preferences   │    │ - Rate Limiting │
-│ - Validation    │    │ - Caching       │    │ - Data Parsing  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       ▼                       │
-         │              ┌─────────────────┐              │
-         │              │ Performance     │              │
-         │              │ Calculator      │              │
-         │              │                 │              │
-         │              │ - Individual    │              │
-         │              │ - Synergy       │              │
-         │              │ - Scoring       │              │
-         │              └─────────────────┘              │
-         │                       │                       │
-         ▼                       ▼                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                 Optimization Engine                         │
+│                 Unified CLI Interface                       │
 │                                                             │
-│ - Constraint Solver (Hungarian Algorithm / Linear Programming) │
-│ - Objective Function (Performance + Preference + Synergy)   │
-│ - Result Ranking and Explanation                            │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────┐ │
+│ │Quick        │ │Manage       │ │View         │ │Settings │ │
+│ │Optimize     │ │Players      │ │Analysis     │ │         │ │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Core Engine                              │
+│                                                             │
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────┐ │
+│ │Data         │ │Performance  │ │Optimization │ │API      │ │
+│ │Manager      │ │Calculator   │ │Engine       │ │Client   │ │
+│ └─────────────┘ └─────────────┘ └─────────────┘ └─────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Simplified Notebook Interface                  │
+│                                                             │
+│ - Calls core engine functions                               │
+│ - No duplicated logic                                       │
+│ - Minimal setup cells                                       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Components and Interfaces
 
-### 1. CLI Interface (`cli.py`)
-- **Purpose**: Handle user interaction and command-line interface
+### 1. Unified CLI Interface (`streamlined_cli.py`)
+- **Purpose**: Single streamlined interface with 4 main options
 - **Key Methods**:
-  - `main()`: Entry point and main menu
-  - `get_player_input()`: Collect available players
-  - `display_results()`: Show optimization results with explanations
-  - `manage_preferences()`: Interface for setting player preferences
+  - `main()`: Entry point with simplified 4-option menu
+  - `quick_optimize()`: Integrated workflow for team optimization
+  - `manage_players()`: Consolidated player management (add/edit/remove/bulk)
+  - `view_analysis()`: Comprehensive analysis dashboard
+  - `settings()`: Configuration and maintenance
 
-### 2. Riot API Client (`riot_client.py`)
-- **Purpose**: Interface with Riot Games API for player data
+### 2. Core Engine (`core_engine.py`)
+- **Purpose**: Centralized business logic accessible by all interfaces
 - **Key Methods**:
-  - `get_summoner_data(summoner_name)`: Fetch basic summoner information
-  - `get_match_history(puuid, count)`: Retrieve recent match data
-  - `get_ranked_stats(summoner_id)`: Get current season ranked statistics
-  - `get_champion_mastery(puuid, champion_id)`: Fetch champion mastery data
-  - `calculate_role_performance(matches, role)`: Analyze performance by role
+  - `add_player_with_data(name, riot_id)`: Add player with automatic data fetching
+  - `optimize_team_smart(player_selection)`: Optimization with intelligent defaults
+  - `get_comprehensive_analysis(players)`: Complete player and team analysis
+  - `bulk_player_operations(operations)`: Batch player management
 - **Features**:
-  - Rate limiting compliance (120 requests per 2 minutes)
-  - Automatic retry with exponential backoff
-  - Response caching to minimize API calls
+  - Automatic API data fetching with fallbacks
+  - Smart default preference calculation
+  - Integrated validation and error handling
+  - Consolidated result formatting
 
-### 2.1. Champion Data Manager (`champion_data.py`)
-- **Purpose**: Manage champion information and role mappings
-- **Key Methods**:
-  - `fetch_champion_list()`: Retrieve champion data from Data Dragon API
-  - `get_champion_roles(champion_id)`: Determine primary/secondary roles for champions
-  - `get_champion_name(champion_id)`: Convert champion ID to name
-  - `update_champion_cache()`: Refresh champion data periodically
-- **Data Source**: https://ddragon.leagueoflegends.com/cdn/15.14.1/data/en_US/champion.json
+### 3. Workflow Managers
+- **Quick Optimize Workflow**: Streamlined optimization with inline player management
+- **Player Management Workflow**: Unified add/edit/remove/bulk operations
+- **Analysis Workflow**: Comprehensive reporting with multiple views
+- **Settings Workflow**: Configuration, cache management, diagnostics
 
-### 3. Data Manager (`data_manager.py`)
-- **Purpose**: Handle data persistence and player information management
-- **Key Methods**:
-  - `save_player_data(player_data)`: Persist player information
-  - `load_player_data()`: Retrieve stored player data
-  - `update_preferences(player_name, preferences)`: Update role preferences
-  - `cache_api_data(data, cache_key)`: Cache API responses
-- **Storage**: JSON files for simplicity and portability
-
-### 4. Performance Calculator (`performance_calculator.py`)
-- **Purpose**: Calculate individual and synergy performance metrics
-- **Key Methods**:
-  - `calculate_individual_score(player, role, matches)`: Individual role performance
-  - `calculate_synergy_score(player1, role1, player2, role2, shared_matches)`: Team synergy
-  - `calculate_champion_mastery_score(player, role, champion_masteries)`: Champion proficiency for role
-  - `get_role_champion_pool(player, role)`: Get top champions for a specific role
-  - `normalize_scores(scores)`: Normalize different metrics to comparable scales
-- **Metrics**:
-  - KDA ratio, CS per minute, vision score, objective participation
-  - Win rate in specific roles
-  - Champion mastery levels and points
-  - Champion pool depth per role
-  - Performance trends over recent matches
-
-### 5. Optimization Engine (`optimizer.py`)
-- **Purpose**: Solve the role assignment optimization problem
-- **Key Methods**:
-  - `optimize_team(available_players)`: Main optimization function
-  - `build_cost_matrix(players, roles)`: Create optimization matrix
-  - `explain_assignment(assignment, scores)`: Generate assignment explanations
-- **Algorithm**: Hungarian algorithm for optimal assignment with custom objective function
+### 4. Existing Components (Unchanged)
+- **Riot API Client**: Maintains current functionality
+- **Data Manager**: Maintains current persistence logic
+- **Performance Calculator**: Maintains current calculation methods
+- **Optimization Engine**: Maintains current optimization algorithms
+- **Champion Data Manager**: Maintains current champion data handling
 
 ## Data Models
 

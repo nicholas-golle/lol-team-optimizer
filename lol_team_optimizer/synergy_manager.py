@@ -25,16 +25,18 @@ class SynergyManager:
     """
     
     def __init__(self, riot_client: Optional[RiotAPIClient] = None, 
-                 cache_directory: str = "cache"):
+                 cache_directory: str = "cache", match_manager=None):
         """
         Initialize the synergy manager.
         
         Args:
-            riot_client: Riot API client for fetching match data
+            riot_client: Riot API client for fetching match data (legacy)
             cache_directory: Directory for caching synergy data
+            match_manager: MatchManager for accessing stored match data
         """
         self.logger = logging.getLogger(__name__)
         self.riot_client = riot_client
+        self.match_manager = match_manager
         self.cache_directory = cache_directory
         self.synergy_db = SynergyDatabase()
         
@@ -46,6 +48,95 @@ class SynergyManager:
         self._load_synergy_data()
         
         self.logger.info("Synergy manager initialized")
+    
+    def calculate_synergies_from_stored_matches(self, players: List[Player]) -> None:
+        """
+        Calculate player synergies from centralized match storage.
+        
+        Args:
+            players: List of players to calculate synergies for
+        """
+        if not self.match_manager:
+            self.logger.warning("No match manager available - cannot calculate synergies from stored matches")
+            return
+        
+        # Get all PUUIDs
+        puuids = {p.puuid for p in players if p.puuid}
+        if len(puuids) < 2:
+            self.logger.warning("Need at least 2 players with PUUIDs to calculate synergies")
+            return
+        
+        # Get matches with multiple team members
+        team_matches = self.match_manager.get_matches_with_multiple_players(puuids)
+        self.logger.info(f"Found {len(team_matches)} matches with multiple team members")
+        
+        # Create PUUID to player name mapping
+        puuid_to_name = {p.puuid: p.name for p in players if p.puuid}
+        
+        # Process each match
+        synergy_updates = {}
+        
+        for match in team_matches:
+            known_participants = match.get_known_players(puuids)
+            
+            if len(known_participants) < 2:
+                continue
+            
+            # Calculate synergies for all pairs in this match
+            for i, participant1 in enumerate(known_participants):
+                for participant2 in known_participants[i+1:]:
+                    player1_name = puuid_to_name.get(participant1.puuid)
+                    player2_name = puuid_to_name.get(participant2.puuid)
+                    
+                    if not player1_name or not player2_name:
+                        continue
+                    
+                    # Get or create synergy data
+                    synergy = self.synergy_db.get_synergy(player1_name, player2_name)
+                    
+                    # Calculate combined performance metrics
+                    combined_kda = (participant1.kda + participant2.kda) / 2
+                    combined_vision = participant1.vision_score + participant2.vision_score
+                    game_duration = match.game_duration
+                    
+                    # Check if both players won
+                    both_won = participant1.win and participant2.win
+                    
+                    # Determine if this is a recent game (within 30 days)
+                    is_recent = (datetime.now() - match.game_creation_datetime).days <= 30
+                    
+                    # Update synergy data
+                    game_data = {
+                        'combined_kda': combined_kda,
+                        'combined_vision': combined_vision,
+                        'game_duration': game_duration,
+                        'is_recent': is_recent
+                    }
+                    
+                    synergy.add_game_result(
+                        won=both_won,
+                        player1_role=participant1.individual_position or participant1.lane,
+                        player2_role=participant2.individual_position or participant2.lane,
+                        player1_champion=participant1.champion_id,
+                        player2_champion=participant2.champion_id,
+                        game_data=game_data
+                    )
+                    
+                    # Track for saving
+                    synergy_key = synergy.synergy_key
+                    synergy_updates[synergy_key] = synergy
+        
+        # Update synergy database
+        for synergy_key, synergy in synergy_updates.items():
+            self.synergy_db.synergies[synergy_key] = synergy
+        
+        # Update last updated timestamp
+        self.synergy_db.last_updated = datetime.now()
+        
+        # Save updated synergy data
+        self._save_synergy_data()
+        
+        self.logger.info(f"Updated synergies for {len(synergy_updates)} player pairs from {len(team_matches)} matches")
     
     def _load_synergy_data(self):
         """Load synergy data from cache file."""

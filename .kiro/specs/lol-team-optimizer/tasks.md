@@ -1,191 +1,181 @@
 # Implementation Plan
 
-- [x] 1. Set up project structure and core data models
+## Streamlining and Interface Consolidation
 
+- [x] 1. Create core engine module for shared functionality
 
 
 
+  - Implement CoreEngine class that consolidates business logic from CLI, notebook, and setup scripts
+  - Create unified methods for player management, optimization, and analysis
+  - Add intelligent defaults and automatic data fetching capabilities
+  - Implement comprehensive error handling and graceful degradation
+  - Write unit tests for core engine functionality
+  - _Requirements: 2.1, 2.3, 7.1, 7.4_
 
-  - Create directory structure for the Python application
-  - Implement Player, PerformanceData, and TeamAssignment dataclasses
-  - Create confiwnoguration management for API keys and settings
-  - Write unit tests for data models
-  - _Requirements: 2.3, 6.4_
+- [x] 2. Design streamlined CLI with 4-option menu structure
 
-- [x] 2. Implement Riot API client with rate limiting
 
 
+  - Create new StreamlinedCLI class with exactly 4 main menu options
+  - Implement Quick Optimize workflow with inline player management
+  - Design Manage Players interface with consolidated add/edit/remove/bulk operations
+  - Create View Analysis dashboard with comprehensive reporting
+  - Add Settings menu for configuration and maintenance
+  - _Requirements: 1.1, 1.2, 6.1, 6.2_
 
 
 
-  - Create RiotAPIClient class with authentication
-  - Implement rate limiting with exponential backoff
-  - Add methods for fetching summoner data and match history
-  - Create response caching mechanism
-  - Write unit tests with mocked API responses
-  - _Requirements: 3.1, 3.3, 3.4_
 
-- [x] 3. Build data persistence and management system
+- [x] 3. Implement Quick Optimize workflow
 
 
 
 
 
-  - Implement DataManager class for JSON-based storage
-  - Create methods for saving and loading player data
-  - Add preference management functionality
-  - Implement cache management with TTL
-  - Write unit tests for data persistence operations
-  - _Requirements: 2.1, 2.3, 3.4_
 
-- [x] 4. Create performance calculation engine
 
 
+  - Create streamlined optimization flow that handles player selection automatically
+  - Add inline player addition when insufficient players are available
+  - Implement smart player selection with recommendations based on data completeness
 
 
-  - Implement PerformanceCalculator class
-  - Add individual performance metric calculations (KDA, CS, vision)
-  - Create synergy score calculation between player pairs
-  - Implement score normalization and weighting
-  - Write unit tests with sample match data
-  - _Requirements: 3.2, 4.1, 4.2, 4.3_
 
-- [x] 5. Develop optimization algorithm
+  - Integrate preference prompting for players with missing data
+  - Add comprehensive results display with all relevant information in one view
+  - _Requirements: 1.3, 1.4, 3.1, 3.2_
 
+- [x] 4. Build consolidated player management interface
 
 
 
 
-  - Implement OptimizationEngine class using Hungarian algorithm
-  - Create cost matrix generation from performance and preference data
-  - Add constraint handling for role assignments
-  - Implement result ranking and explanation generation
-  - Write unit tests for optimization scenarios
-  - _Requirements: 1.1, 1.2, 1.3, 5.1, 5.2, 5.3_
 
-- [x] 6. Build command-line interface
 
+  - Implement unified player management with add, edit, remove, and bulk operations
+  - Add batch player import functionality for multiple players at once
 
 
 
+  - Create player data validation and automatic API data fetching
+  - Implement preference management integrated with player editing
+  - Add player comparison and analysis tools
 
-  - Create CLI class with main menu system
-  - Implement player input collection and validation
-  - Add preference management interface
-  - Create results display with formatting
-  - Write integration tests for user workflows
-  - _Requirements: 6.1, 6.2, 6.3, 6.4_
--
 
-- [x] 7. Integrate components and add error handling
 
 
 
 
+  - _Requirements: 3.3, 3.4, 5.1, 5.2_
 
+- [x] 5. Create comprehensive analysis dashboard
 
 
 
 
 
-  - Connect all components in main application flow
-  - Implement comprehensive error handling for API failures
-  - Add input validation and user feedback
-  - Create graceful degradation for missing data
-  - Write end-to-end integration tests
-  - _Requirements: 1.4, 3.3, 3.4, 6.4_
+  - Implement consolidated view showing player analysis, team comparisons, and historical data
 
-- [x] 8. Add advanced features and optimization
 
 
+  - Add side-by-side player comparisons with role suitability analysis
+  - Create team synergy analysis with visual representation
+  - Implement champion pool analysis across all players
+  - Add performance trend analysis and recommendations
+  - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
+- [x] 6. Simplify Jupyter notebook interface
 
 
-  - Implement alternative team composition suggestions
-  - Add detailed explanation system for assignments
-  - Create performance trend analysis
-  - Optimize caching and API call efficiency
-  - Write tests for advanced features
-  - _Requirements: 1.3, 5.4, 4.3_
 
-- [x] 9. Create comprehensive test suite and documentation
 
 
+  - Remove duplicated functionality from notebook cells
+  - Create simplified notebook that calls core engine methods
+  - Reduce setup complexity to single initialization cell
+  - Implement notebook-friendly wrappers for core functionality
+  - Add clear documentation for notebook usage patterns
+  - _Requirements: 2.2, 2.4, 7.2, 7.3_
 
+- [x] 7. Consolidate setup and configuration
 
 
-  - Write integration tests covering complete workflows
-  - Add error scenario testing
-  - Create user documentation and setup instructions
-  - Implement logging for debugging and monitoring
-  - Add configuration examples and API key setup guide
-  - _Requirements: 6.1, 6.4_
 
-- [x] 10. Implement champion data management system
 
 
-  - Create ChampionDataManager class to fetch and cache champion data from Data Dragon API
-  - Implement champion role mapping based on champion classifications
-  - Add methods to convert champion IDs to names and vice versa
-  - Create champion data caching with periodic updates
-  - Write unit tests for champion data operations
-  - _Requirements: 7.3, 8.3_
+  - Merge main.py functionality into unified setup
+  - Create single configuration system that works across all environments
+  - Implement automatic environment detection and appropriate setup
+  - Add comprehensive error handling and user guidance for setup issues
+  - Create unified API key management across all interfaces
+  - _Requirements: 2.1, 2.3, 5.3, 5.4_
 
-- [x] 11. Add champion mastery API integration
+- [x] 8. Remove redundant code and interfaces
 
 
-  - Extend RiotAPIClient to fetch champion mastery data using PUUID
-  - Implement champion mastery data parsing and validation
-  - Add champion mastery caching to reduce API calls
-  - Create methods to get top champions for each player
-  - Write unit tests with mocked champion mastery responses
-  - _Requirements: 7.1, 7.2, 8.1_
 
-- [x] 12. Enhance player data model with champion information
 
-  - Update Player dataclass to include champion mastery data
-  - Add ChampionMastery dataclass for structured mastery information
-  - Implement role-based champion pool organization
-  - Update data persistence to handle champion data
-  - Write migration logic for existing player data
-  - _Requirements: 7.1, 8.2_
 
-- [x] 13. Integrate champion mastery into performance calculations
+  - Identify and eliminate duplicated functionality across CLI, notebook, and setup
+  - Refactor shared logic into core engine module
+  - Remove obsolete menu options and consolidate similar functions
+  - Update all interfaces to use shared core functionality
+  - Ensure consistent behavior across all access points
+  - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
+- [x] 9. Implement smart defaults and automatic data handling
 
 
-  - Update PerformanceCalculator to factor in champion mastery scores
-  - Implement champion pool depth analysis for each role
-  - Add champion mastery weighting to role suitability calculations
-  - Create methods to identify best champions per role for each player
-  - Write unit tests for enhanced performance calculations
-  - _Requirements: 8.1, 8.2_
 
-- [x] 14. Add champion recommendations to optimization results
 
 
+  - Add automatic API data fetching when players are added
+  - Implement intelligent default preferences based on performance data
+  - Create automatic role suitability calculation when preferences are missing
+  - Add graceful degradation when API data is unavailable
+  - Implement caching strategies to minimize API calls
+  - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
+- [x] 10. Update documentation and user guidance
 
 
-  - Update TeamAssignment model to include champion recommendations
-  - Implement champion recommendation logic based on mastery and role fit
-  - Add champion suggestions to result display in CLI
-  - Create detailed champion analysis in player data views
-  - Write tests for champion recommendation functionality
-  - _Requirements: 9.1, 9.2, 9.4_
 
-- [x] 15. Update CLI to display champion information
 
 
+  - Create updated user documentation reflecting streamlined interface
+  - Add quick start guide for the new 4-option menu structure
+  - Update API setup documentation for unified configuration
+  - Create troubleshooting guide for common issues
+  - Add examples and use cases for each main menu option
+  - _Requirements: 6.3, 6.4_
 
+- [x] 11. Create comprehensive test suite for streamlined system
 
 
 
 
 
-  - Enhance player data viewer to show champion masteries by role
-  - Add champion information to optimization results display
-  - Implement champion-based filtering and analysis options
-  - Update help text and user guidance for new features
-  - Write integration tests for enhanced CLI functionality
-  - _Requirements: 7.4, 9.3, 9.4_
+
+
+
+
+  - Write integration tests for new streamlined workflows
+  - Add tests for core engine functionality and shared logic
+  - Create tests for simplified notebook interface
+  - Implement tests for unified setup and configuration
+  - Add performance tests to ensure streamlining doesn't impact speed
+  - _Requirements: 1.4, 2.4, 7.4_
+
+- [x] 12. Migrate existing data and ensure backward compatibility
+
+
+
+
+
+  - Create migration scripts for existing player data
+  - Ensure new streamlined interface can read existing data files
+  - Add compatibility layer for any breaking changes
+  - Test migration with existing user data
+  - Create rollback procedures if needed
+  - _Requirements: 3.4, 5.4_

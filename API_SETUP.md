@@ -1,6 +1,6 @@
-# Riot Games API Key Setup Guide
+# Riot Games API Key Setup Guide - Unified Configuration
 
-This guide provides detailed instructions for obtaining and configuring your Riot Games API key for the League of Legends Team Optimizer.
+This guide provides detailed instructions for obtaining and configuring your Riot Games API key for the streamlined League of Legends Team Optimizer interface.
 
 ## Why Do You Need an API Key?
 
@@ -118,20 +118,20 @@ You can also set the API key in your application configuration by modifying the 
 
 ## Testing Your API Key
 
-### Using the Application
+### Using the Streamlined Application
 
 1. **Start the application**:
    ```bash
    python main.py
    ```
 
-2. **Check the startup messages**:
-   - ✅ If API is working: No warnings about offline mode
-   - ❌ If API has issues: Warning about "offline mode" or "API not available"
+2. **Check the system status display**:
+   - ✅ If API is working: Shows "API: ✅ Available" in system status
+   - ❌ If API has issues: Shows "API: ⚠️ Offline" with offline mode warning
 
 3. **Test API connectivity**:
-   - Go to **System Maintenance** → **Test API Connectivity**
-   - Should show successful connection and rate limit status
+   - Go to **Settings** (option 4) → **System Diagnostics** → **Test API Connectivity**
+   - Should show successful connection, rate limits, and regional endpoint status
 
 ### Manual Testing
 

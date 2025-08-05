@@ -6,7 +6,7 @@ This module contains the core data structures used throughout the application.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, Any
 
 
 @dataclass
@@ -265,6 +265,212 @@ class Player:
         )
         
         return competency_score
+
+
+@dataclass
+class MatchParticipant:
+    """Represents a participant in a match."""
+    
+    puuid: str
+    summoner_name: str = ""
+    champion_id: int = 0
+    champion_name: str = ""
+    team_id: int = 0
+    role: str = ""  # SOLO, DUO, NONE, etc. (Riot's role assignment)
+    lane: str = ""  # TOP, JUNGLE, MIDDLE, BOTTOM, UTILITY
+    individual_position: str = ""  # More accurate position
+    
+    # Performance stats
+    kills: int = 0
+    deaths: int = 0
+    assists: int = 0
+    total_damage_dealt_to_champions: int = 0
+    total_minions_killed: int = 0
+    neutral_minions_killed: int = 0
+    vision_score: int = 0
+    gold_earned: int = 0
+    
+    # Game outcome
+    win: bool = False
+    
+    @property
+    def kda(self) -> float:
+        """Calculate KDA ratio."""
+        return (self.kills + self.assists) / max(self.deaths, 1)
+    
+    @property
+    def cs_total(self) -> int:
+        """Calculate total CS (minions + jungle monsters)."""
+        return self.total_minions_killed + self.neutral_minions_killed
+
+
+@dataclass
+class Match:
+    """Represents a complete League of Legends match."""
+    
+    match_id: str
+    game_creation: int  # Unix timestamp
+    game_duration: int  # Duration in seconds
+    game_end_timestamp: int  # Unix timestamp
+    game_mode: str = "CLASSIC"
+    game_type: str = "MATCHED_GAME"
+    map_id: int = 11  # Summoner's Rift
+    queue_id: int = 0  # Queue type (420=Ranked Solo, 440=Ranked Flex, etc.)
+    game_version: str = ""
+    
+    # Participants
+    participants: List[MatchParticipant] = field(default_factory=list)
+    
+    # Teams (100 = Blue, 200 = Red)
+    winning_team: int = 0
+    
+    # Metadata
+    stored_at: Optional[datetime] = None
+    last_updated: Optional[datetime] = None
+    
+    def __post_init__(self):
+        """Initialize timestamps if not provided."""
+        if self.stored_at is None:
+            self.stored_at = datetime.now()
+        if self.last_updated is None:
+            self.last_updated = datetime.now()
+    
+    @property
+    def game_creation_datetime(self) -> datetime:
+        """Convert game creation timestamp to datetime."""
+        return datetime.fromtimestamp(self.game_creation / 1000)
+    
+    @property
+    def game_end_datetime(self) -> datetime:
+        """Convert game end timestamp to datetime."""
+        return datetime.fromtimestamp(self.game_end_timestamp / 1000)
+    
+    def get_participant_by_puuid(self, puuid: str) -> Optional[MatchParticipant]:
+        """Get a specific participant by their PUUID."""
+        for participant in self.participants:
+            if participant.puuid == puuid:
+                return participant
+        return None
+    
+    def get_participants_by_team(self, team_id: int) -> List[MatchParticipant]:
+        """Get all participants from a specific team."""
+        return [p for p in self.participants if p.team_id == team_id]
+    
+    def get_known_players(self, known_puuids: set) -> List[MatchParticipant]:
+        """Get participants that are in our player database."""
+        return [p for p in self.participants if p.puuid in known_puuids]
+
+
+@dataclass
+class PlayerExtractionRange:
+    """Tracks the range of matches extracted for a player."""
+    
+    puuid: str
+    start_index: int = 0  # Starting index of extracted range
+    end_index: int = 0    # Ending index of extracted range (exclusive)
+    total_matches_available: Optional[int] = None  # Total matches available from API
+    last_extraction: Optional[datetime] = None
+    extraction_complete: bool = False  # True if we've extracted all available matches
+    
+    def __post_init__(self):
+        """Initialize timestamps if not provided."""
+        if self.last_extraction is None:
+            self.last_extraction = datetime.now()
+    
+    @property
+    def matches_extracted(self) -> int:
+        """Number of matches extracted."""
+        return self.end_index - self.start_index
+    
+    @property
+    def extraction_progress(self) -> float:
+        """Progress of extraction (0.0 to 1.0)."""
+        if self.total_matches_available is None or self.total_matches_available == 0:
+            return 0.0
+        return min(1.0, self.matches_extracted / self.total_matches_available)
+    
+    def get_next_extraction_range(self, batch_size: int = 20) -> Tuple[int, int]:
+        """
+        Get the next range to extract.
+        
+        Args:
+            batch_size: Size of the batch to extract
+            
+        Returns:
+            Tuple of (start_index, count) for next extraction
+        """
+        if self.extraction_complete:
+            return self.end_index, 0
+        
+        # If we know total matches available, don't exceed it
+        if self.total_matches_available is not None:
+            remaining = self.total_matches_available - self.end_index
+            count = min(batch_size, remaining)
+        else:
+            count = batch_size
+        
+        return self.end_index, count
+    
+    def update_extraction(self, matches_fetched: int, total_available: Optional[int] = None) -> None:
+        """
+        Update extraction progress.
+        
+        Args:
+            matches_fetched: Number of matches successfully fetched
+            total_available: Total matches available (if known)
+        """
+        self.end_index += matches_fetched
+        self.last_extraction = datetime.now()
+        
+        if total_available is not None:
+            self.total_matches_available = total_available
+        
+        # Mark as complete if we got fewer matches than requested or reached total
+        if matches_fetched == 0:
+            self.extraction_complete = True
+        elif (self.total_matches_available is not None and 
+              self.end_index >= self.total_matches_available):
+            self.extraction_complete = True
+
+
+@dataclass
+class ExtractionTracker:
+    """Tracks extraction progress for all players."""
+    
+    player_ranges: Dict[str, PlayerExtractionRange] = field(default_factory=dict)
+    last_updated: Optional[datetime] = None
+    
+    def __post_init__(self):
+        """Initialize timestamps if not provided."""
+        if self.last_updated is None:
+            self.last_updated = datetime.now()
+    
+    def get_player_range(self, puuid: str) -> PlayerExtractionRange:
+        """Get or create extraction range for a player."""
+        if puuid not in self.player_ranges:
+            self.player_ranges[puuid] = PlayerExtractionRange(puuid=puuid)
+        return self.player_ranges[puuid]
+    
+    def update_player_extraction(self, puuid: str, matches_fetched: int, 
+                               total_available: Optional[int] = None) -> None:
+        """Update extraction progress for a player."""
+        player_range = self.get_player_range(puuid)
+        player_range.update_extraction(matches_fetched, total_available)
+        self.last_updated = datetime.now()
+    
+    def get_extraction_summary(self) -> Dict[str, Any]:
+        """Get summary of extraction progress for all players."""
+        total_players = len(self.player_ranges)
+        completed_players = sum(1 for r in self.player_ranges.values() if r.extraction_complete)
+        total_matches_extracted = sum(r.matches_extracted for r in self.player_ranges.values())
+        
+        return {
+            'total_players': total_players,
+            'completed_players': completed_players,
+            'completion_rate': completed_players / total_players if total_players > 0 else 0,
+            'total_matches_extracted': total_matches_extracted,
+            'last_updated': self.last_updated.isoformat() if self.last_updated else None
+        }
     
     def get_champion_competency_tier(self, mastery: ChampionMastery) -> str:
         """

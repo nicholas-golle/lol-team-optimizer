@@ -53,6 +53,15 @@ class Config:
             # Try to get API key from environment variable
             self.riot_api_key = os.getenv("RIOT_API_KEY", "")
         
+        # Ensure directories are absolute paths
+        from pathlib import Path
+        self.data_directory = str(Path(self.data_directory).resolve())
+        self.cache_directory = str(Path(self.cache_directory).resolve())
+        
+        # Create directories if they don't exist
+        Path(self.data_directory).mkdir(parents=True, exist_ok=True)
+        Path(self.cache_directory).mkdir(parents=True, exist_ok=True)
+        
         # API key is optional - application can run in offline mode without it
         # if not self.riot_api_key:
         #     raise ValueError("Riot API key is required. Set RIOT_API_KEY environment variable.")
