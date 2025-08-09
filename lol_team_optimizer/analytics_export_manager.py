@@ -504,3 +504,146 @@ class AnalyticsExportManager:
                 continue
         
         return exported_files
+    
+    def create_shareable_export(
+        self,
+        data: Any,
+        data_type: str,
+        title: str,
+        description: str = "",
+        formats: Optional[List[ExportFormat]] = None,
+        share_config: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Create shareable export with multiple formats and sharing options.
+        
+        Args:
+            data: Data to export and share
+            data_type: Type of data (player, champion, composition)
+            title: Title for the shareable content
+            description: Description of the content
+            formats: List of export formats to generate
+            share_config: Sharing configuration options
+            
+        Returns:
+            Dictionary with export files and sharing information
+        """
+        if formats is None:
+            formats = [ExportFormat.PDF, ExportFormat.CSV, ExportFormat.JSON]
+        
+        # Export in multiple formats
+        exported_files = self.export_multiple_formats(data, data_type, formats)
+        
+        # Prepare sharing data
+        sharing_data = {
+            'title': title,
+            'description': description,
+            'data_type': data_type,
+            'export_files': [str(f) for f in exported_files],
+            'formats': [f.value for f in formats],
+            'created_at': datetime.now().isoformat(),
+            'file_sizes': {
+                str(f): f.stat().st_size for f in exported_files if f.exists()
+            }
+        }
+        
+        return {
+            'exported_files': exported_files,
+            'sharing_data': sharing_data,
+            'formats': formats
+        }
+    
+    def generate_export_summary(
+        self,
+        exported_files: List[Path],
+        include_previews: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Generate summary of exported files with metadata and previews.
+        
+        Args:
+            exported_files: List of exported file paths
+            include_previews: Whether to include file previews
+            
+        Returns:
+            Dictionary with export summary information
+        """
+        summary = {
+            'total_files': len(exported_files),
+            'files': [],
+            'total_size_bytes': 0,
+            'formats': set(),
+            'created_at': datetime.now().isoformat()
+        }
+        
+        for filepath in exported_files:
+            if not filepath.exists():
+                continue
+                
+            file_info = {
+                'filename': filepath.name,
+                'path': str(filepath),
+                'format': filepath.suffix.lower().lstrip('.'),
+                'size_bytes': filepath.stat().st_size,
+                'size_mb': round(filepath.stat().st_size / (1024 * 1024), 2),
+                'created_at': datetime.fromtimestamp(filepath.stat().st_ctime).isoformat(),
+                'modified_at': datetime.fromtimestamp(filepath.stat().st_mtime).isoformat()
+            }
+            
+            # Add format to set
+            summary['formats'].add(file_info['format'])
+            summary['total_size_bytes'] += file_info['size_bytes']
+            
+            # Add preview if requested
+            if include_previews:
+                file_info['preview'] = self._generate_file_preview(filepath)
+            
+            summary['files'].append(file_info)
+        
+        # Convert set to list for JSON serialization
+        summary['formats'] = list(summary['formats'])
+        summary['total_size_mb'] = round(summary['total_size_bytes'] / (1024 * 1024), 2)
+        
+        return summary
+    
+    def _generate_file_preview(self, filepath: Path) -> Dict[str, Any]:
+        """Generate preview information for exported file."""
+        preview = {
+            'type': 'unknown',
+            'content': None,
+            'error': None
+        }
+        
+        try:
+            if filepath.suffix.lower() == '.json':
+                preview['type'] = 'json'
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = json.load(f)
+                    # Provide a summary of JSON structure
+                    preview['content'] = {
+                        'keys': list(content.keys()) if isinstance(content, dict) else 'array',
+                        'size': len(str(content)),
+                        'sample': str(content)[:200] + '...' if len(str(content)) > 200 else str(content)
+                    }
+            
+            elif filepath.suffix.lower() == '.csv':
+                preview['type'] = 'csv'
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()[:5]  # First 5 lines
+                    preview['content'] = {
+                        'headers': lines[0].strip() if lines else '',
+                        'sample_rows': [line.strip() for line in lines[1:4]],
+                        'total_lines': len(lines)
+                    }
+            
+            elif filepath.suffix.lower() == '.pdf':
+                preview['type'] = 'pdf'
+                preview['content'] = {
+                    'size_mb': round(filepath.stat().st_size / (1024 * 1024), 2),
+                    'description': 'PDF report with analytics data and visualizations'
+                }
+            
+        except Exception as e:
+            preview['error'] = str(e)
+        
+        return preview

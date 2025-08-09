@@ -6,6 +6,7 @@ match history, and ranked statistics with proper rate limiting and error handlin
 """
 
 import json
+import logging
 import time
 import hashlib
 from datetime import datetime, timedelta
@@ -79,6 +80,7 @@ class RiotAPIClient:
             config: Application configuration containing API key and settings
         """
         self.config = config
+        self.logger = logging.getLogger(__name__)
         self.rate_limiter = RateLimiter(
             max_requests=config.riot_api_rate_limit,
             time_window=120  # 2 minutes

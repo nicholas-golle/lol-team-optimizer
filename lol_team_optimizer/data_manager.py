@@ -169,6 +169,34 @@ class DataManager:
                 return player
         return None
     
+    def add_player(self, player: Player) -> bool:
+        """
+        Add a new player to the data store.
+        
+        Args:
+            player: Player object to add
+            
+        Returns:
+            True if player was added, False if player already exists
+            
+        Raises:
+            ValueError: If player data is invalid
+        """
+        if not player.name or not player.summoner_name:
+            raise ValueError("Player name and summoner name are required")
+        
+        players = self.load_player_data()
+        
+        # Check if player already exists
+        for existing_player in players:
+            if existing_player.name == player.name:
+                return False  # Player already exists
+        
+        # Add new player
+        players.append(player)
+        self.save_player_data(players)
+        return True
+    
     def update_player(self, updated_player: Player) -> None:
         """
         Update a specific player's data.

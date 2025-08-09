@@ -5395,9 +5395,13 @@ class StreamlinedCLI:
             print("3. Update champion data")
             print("4. API configuration")
             print("5. Export system logs")
-            print("6. Back to main menu")
+            print("6. 📊 Analytics Configuration")
+            print("7. 💾 Data Backup & Recovery")
+            print("8. 📈 Monitoring & Alerts")
+            print("9. 🚀 Deployment Configuration")
+            print("10. Back to main menu")
             
-            choice = input("\nEnter your choice (1-6): ").strip()
+            choice = input("\nEnter your choice (1-10): ").strip()
             
             if choice == "1":
                 self._system_diagnostics()
@@ -5410,9 +5414,17 @@ class StreamlinedCLI:
             elif choice == "5":
                 self._export_logs()
             elif choice == "6":
+                self._analytics_configuration()
+            elif choice == "7":
+                self._data_backup_recovery()
+            elif choice == "8":
+                self._monitoring_alerts()
+            elif choice == "9":
+                self._deployment_configuration()
+            elif choice == "10":
                 break
             else:
-                print("Invalid choice. Please enter a number between 1-6.")
+                print("Invalid choice. Please enter a number between 1-10.")
     
     def _system_diagnostics(self) -> None:
         """Display comprehensive system diagnostics."""
@@ -6941,6 +6953,422 @@ class StreamlinedCLI:
             self.logger.error(f"Dashboard error: {e}", exc_info=True)
             print(f"❌ Dashboard error: {e}")
             print("Please check the logs for more details.")
+    
+    def _analytics_configuration(self) -> None:
+        """Analytics system configuration and management."""
+        while True:
+            print("\n" + "=" * 60)
+            print("📊 ANALYTICS CONFIGURATION")
+            print("=" * 60)
+            
+            # Get analytics health status
+            health_status = self.engine._get_analytics_health_status()
+            
+            print(f"📊 Analytics Status: {health_status['overall_status']}")
+            
+            # Show component status
+            print("\n🔧 Component Status:")
+            for component, status in health_status['components'].items():
+                status_icon = "✅" if status == "OK" else "❌"
+                print(f"  {component.replace('_', ' ').title():25}: {status_icon} {status}")
+            
+            # Show deployment readiness
+            if 'deployment_readiness' in health_status:
+                readiness = health_status['deployment_readiness']
+                readiness_icon = "✅" if readiness['overall_ready'] else "⚠️"
+                print(f"\n🚀 Deployment Ready: {readiness_icon} {'Yes' if readiness['overall_ready'] else 'No'}")
+                
+                if readiness['warnings']:
+                    print("\n⚠️ Warnings:")
+                    for warning in readiness['warnings']:
+                        print(f"  • {warning}")
+            
+            print("\n📊 Configuration Options:")
+            print("1. 🔄 Refresh Analytics Cache")
+            print("2. 📈 Update Performance Baselines")
+            print("3. 🧹 Clear Analytics Cache")
+            print("4. 📊 View Cache Statistics")
+            print("5. 🔧 Analytics Health Check")
+            print("6. 🏠 Back to Settings")
+            
+            choice = input("\nEnter your choice (1-6): ").strip()
+            
+            if choice == "1":
+                self._refresh_analytics_cache()
+            elif choice == "2":
+                self._update_performance_baselines()
+            elif choice == "3":
+                self._clear_analytics_cache()
+            elif choice == "4":
+                self._view_cache_statistics()
+            elif choice == "5":
+                self._analytics_health_check()
+            elif choice == "6":
+                break
+            else:
+                print("Invalid choice. Please enter a number between 1-6.")
+    
+    def _data_backup_recovery(self) -> None:
+        """Data backup and recovery management."""
+        while True:
+            print("\n" + "=" * 60)
+            print("💾 DATA BACKUP & RECOVERY")
+            print("=" * 60)
+            
+            print("1. 📦 Create Analytics Backup")
+            print("2. 📋 List Available Backups")
+            print("3. 🔄 Restore from Backup")
+            print("4. 🗑️ Delete Old Backups")
+            print("5. ⚙️ Configure Backup Settings")
+            print("6. 🏠 Back to Settings")
+            
+            choice = input("\nEnter your choice (1-6): ").strip()
+            
+            if choice == "1":
+                self._create_analytics_backup()
+            elif choice == "2":
+                self._list_available_backups()
+            elif choice == "3":
+                self._restore_from_backup()
+            elif choice == "4":
+                self._delete_old_backups()
+            elif choice == "5":
+                self._configure_backup_settings()
+            elif choice == "6":
+                break
+            else:
+                print("Invalid choice. Please enter a number between 1-6.")
+    
+    def _monitoring_alerts(self) -> None:
+        """Monitoring and alerts configuration."""
+        while True:
+            print("\n" + "=" * 60)
+            print("📈 MONITORING & ALERTS")
+            print("=" * 60)
+            
+            print("1. 🔧 Setup Analytics Monitoring")
+            print("2. 📊 View System Metrics")
+            print("3. 🚨 Configure Alerts")
+            print("4. 📋 View Alert History")
+            print("5. 🔄 Test Alert System")
+            print("6. 🏠 Back to Settings")
+            
+            choice = input("\nEnter your choice (1-6): ").strip()
+            
+            if choice == "1":
+                self._setup_analytics_monitoring()
+            elif choice == "2":
+                self._view_system_metrics()
+            elif choice == "3":
+                self._configure_alerts()
+            elif choice == "4":
+                self._view_alert_history()
+            elif choice == "5":
+                self._test_alert_system()
+            elif choice == "6":
+                break
+            else:
+                print("Invalid choice. Please enter a number between 1-6.")
+    
+    def _deployment_configuration(self) -> None:
+        """Deployment configuration and readiness check."""
+        print("\n" + "=" * 60)
+        print("🚀 DEPLOYMENT CONFIGURATION")
+        print("=" * 60)
+        
+        print("🔄 Generating deployment configuration...")
+        
+        try:
+            deployment_config = self.engine.get_deployment_configuration()
+            
+            if 'error' in deployment_config:
+                print(f"❌ Error getting deployment configuration: {deployment_config['error']}")
+                return
+            
+            # System info
+            system_info = deployment_config['system_info']
+            print(f"\n📊 System Information:")
+            print(f"  Version: {system_info['version']}")
+            print(f"  Analytics Enabled: {'✅' if system_info['analytics_enabled'] else '❌'}")
+            print(f"  Deployment Timestamp: {system_info['deployment_timestamp']}")
+            
+            # Deployment checklist
+            print(f"\n✅ Deployment Checklist:")
+            all_required_ok = True
+            for item in deployment_config['deployment_checklist']:
+                status_icon = "✅" if item['status'] == "OK" else "⚠️" if item['status'] == "PENDING" else "❌"
+                required_text = " (Required)" if item['required'] else " (Optional)"
+                print(f"  {status_icon} {item['item']}{required_text}: {item['status']}")
+                
+                if item['required'] and item['status'] != "OK":
+                    all_required_ok = False
+            
+            # Overall readiness
+            print(f"\n🚀 Deployment Ready: {'✅ Yes' if all_required_ok else '❌ No'}")
+            
+            # Recommendations
+            if deployment_config['recommendations']:
+                print(f"\n💡 Recommendations:")
+                for rec in deployment_config['recommendations']:
+                    print(f"  • {rec}")
+            
+            # Configuration details
+            print(f"\n⚙️ Configuration Summary:")
+            config = deployment_config['configuration']
+            print(f"  Cache: {'Enabled' if config['cache_settings']['enabled'] else 'Disabled'}")
+            print(f"  Parallel Processing: {'Enabled' if config['performance_settings']['parallel_processing'] else 'Disabled'}")
+            print(f"  Health Checks: {'Enabled' if config['monitoring_settings']['health_checks'] else 'Disabled'}")
+            
+        except Exception as e:
+            print(f"❌ Error generating deployment configuration: {e}")
+    
+    def _refresh_analytics_cache(self) -> None:
+        """Refresh the analytics cache."""
+        print("\n🔄 Refreshing analytics cache...")
+        
+        try:
+            result = self.engine.invalidate_analytics_cache()
+            
+            if result.get('success'):
+                print("✅ Analytics cache refreshed successfully")
+                print(f"   Entries cleared: {result.get('entries_cleared', 0)}")
+            else:
+                print(f"❌ Failed to refresh cache: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ Error refreshing cache: {e}")
+    
+    def _update_performance_baselines(self) -> None:
+        """Update performance baselines."""
+        print("\n📈 Updating performance baselines...")
+        
+        try:
+            result = self.engine.update_player_baselines()
+            
+            if result.get('success'):
+                print("✅ Performance baselines updated successfully")
+                print(f"   Players updated: {result.get('players_updated', 0)}")
+                print(f"   Baselines calculated: {result.get('baselines_calculated', 0)}")
+            else:
+                print(f"❌ Failed to update baselines: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ Error updating baselines: {e}")
+    
+    def _clear_analytics_cache(self) -> None:
+        """Clear the analytics cache."""
+        confirm = input("\n⚠️ This will clear all cached analytics data. Continue? (y/N): ").strip().lower()
+        
+        if confirm == 'y':
+            print("\n🧹 Clearing analytics cache...")
+            
+            try:
+                result = self.engine.invalidate_analytics_cache("*")
+                
+                if result.get('success'):
+                    print("✅ Analytics cache cleared successfully")
+                else:
+                    print(f"❌ Failed to clear cache: {result.get('error', 'Unknown error')}")
+                    
+            except Exception as e:
+                print(f"❌ Error clearing cache: {e}")
+        else:
+            print("Cache clear cancelled.")
+    
+    def _view_cache_statistics(self) -> None:
+        """View analytics cache statistics."""
+        print("\n📊 Analytics Cache Statistics")
+        print("-" * 40)
+        
+        try:
+            stats = self.engine.get_analytics_cache_statistics()
+            
+            if 'error' in stats:
+                print(f"❌ Error getting cache statistics: {stats['error']}")
+                return
+            
+            print(f"Cache Entries: {stats.get('total_entries', 0)}")
+            print(f"Cache Size: {stats.get('cache_size_mb', 0):.1f} MB")
+            print(f"Hit Rate: {stats.get('hit_rate', 0):.1%}")
+            print(f"Miss Rate: {stats.get('miss_rate', 0):.1%}")
+            print(f"Evictions: {stats.get('evictions', 0)}")
+            
+        except Exception as e:
+            print(f"❌ Error viewing cache statistics: {e}")
+    
+    def _analytics_health_check(self) -> None:
+        """Perform comprehensive analytics health check."""
+        print("\n🔧 Analytics Health Check")
+        print("-" * 30)
+        
+        try:
+            health_status = self.engine._get_analytics_health_status()
+            
+            print(f"Overall Status: {health_status['overall_status']}")
+            
+            print("\nComponent Status:")
+            for component, status in health_status['components'].items():
+                status_icon = "✅" if status == "OK" else "❌"
+                print(f"  {component.replace('_', ' ').title():25}: {status_icon} {status}")
+            
+            if 'performance_metrics' in health_status:
+                print("\nPerformance Metrics:")
+                metrics = health_status['performance_metrics']
+                if 'cache' in metrics and isinstance(metrics['cache'], dict):
+                    cache_metrics = metrics['cache']
+                    print(f"  Cache Hit Rate: {cache_metrics.get('hit_rate', 0):.1%}")
+                    print(f"  Cache Size: {cache_metrics.get('cache_size_mb', 0):.1f} MB")
+            
+            if health_status.get('recommendations'):
+                print("\nRecommendations:")
+                for rec in health_status['recommendations']:
+                    print(f"  💡 {rec}")
+                    
+        except Exception as e:
+            print(f"❌ Error performing health check: {e}")
+    
+    def _create_analytics_backup(self) -> None:
+        """Create an analytics backup."""
+        backup_name = input("\n💾 Enter backup name (or press Enter for auto-generated): ").strip()
+        
+        if not backup_name:
+            backup_name = None
+        
+        print(f"\n📦 Creating analytics backup...")
+        
+        try:
+            result = self.engine.create_analytics_backup(backup_name)
+            
+            if result.get('success'):
+                print("✅ Analytics backup created successfully")
+                print(f"   Backup Path: {result.get('backup_path')}")
+                print(f"   Backup Size: {result.get('backup_size', 0)} bytes")
+                print(f"   Files Backed Up: {result.get('files_backed_up', 0)}")
+            else:
+                print(f"❌ Failed to create backup: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ Error creating backup: {e}")
+    
+    def _list_available_backups(self) -> None:
+        """List available backup files."""
+        print("\n📋 Available Backups")
+        print("-" * 30)
+        
+        try:
+            from pathlib import Path
+            backup_dir = Path("backups")
+            
+            if not backup_dir.exists():
+                print("No backup directory found.")
+                return
+            
+            backup_files = list(backup_dir.glob("*.backup"))
+            
+            if not backup_files:
+                print("No backup files found.")
+                return
+            
+            for i, backup_file in enumerate(backup_files, 1):
+                stat = backup_file.stat()
+                size_mb = stat.st_size / (1024 * 1024)
+                modified = datetime.fromtimestamp(stat.st_mtime)
+                print(f"{i}. {backup_file.name}")
+                print(f"   Size: {size_mb:.1f} MB")
+                print(f"   Modified: {modified.strftime('%Y-%m-%d %H:%M:%S')}")
+                print()
+                
+        except Exception as e:
+            print(f"❌ Error listing backups: {e}")
+    
+    def _restore_from_backup(self) -> None:
+        """Restore from backup (placeholder)."""
+        print("\n🔄 Backup restoration is not yet implemented.")
+        print("This feature will be available in a future update.")
+    
+    def _delete_old_backups(self) -> None:
+        """Delete old backup files."""
+        print("\n🗑️ Delete Old Backups")
+        print("-" * 25)
+        
+        days = input("Delete backups older than how many days? (default 30): ").strip()
+        
+        try:
+            days = int(days) if days else 30
+        except ValueError:
+            days = 30
+        
+        confirm = input(f"\n⚠️ Delete backups older than {days} days? (y/N): ").strip().lower()
+        
+        if confirm == 'y':
+            try:
+                from pathlib import Path
+                from datetime import datetime, timedelta
+                
+                backup_dir = Path("backups")
+                if not backup_dir.exists():
+                    print("No backup directory found.")
+                    return
+                
+                cutoff_date = datetime.now() - timedelta(days=days)
+                deleted_count = 0
+                
+                for backup_file in backup_dir.glob("*.backup"):
+                    if datetime.fromtimestamp(backup_file.stat().st_mtime) < cutoff_date:
+                        backup_file.unlink()
+                        deleted_count += 1
+                
+                print(f"✅ Deleted {deleted_count} old backup files.")
+                
+            except Exception as e:
+                print(f"❌ Error deleting backups: {e}")
+        else:
+            print("Backup deletion cancelled.")
+    
+    def _configure_backup_settings(self) -> None:
+        """Configure backup settings (placeholder)."""
+        print("\n⚙️ Backup settings configuration is not yet implemented.")
+        print("This feature will be available in a future update.")
+    
+    def _setup_analytics_monitoring(self) -> None:
+        """Setup analytics monitoring."""
+        print("\n🔧 Setting up analytics monitoring...")
+        
+        enable_alerts = input("Enable alerts? (Y/n): ").strip().lower() != 'n'
+        
+        try:
+            result = self.engine.setup_analytics_monitoring(enable_alerts)
+            
+            if result.get('success'):
+                print("✅ Analytics monitoring configured successfully")
+                print(f"   Config Path: {result.get('config_path')}")
+                print(f"   Monitoring Enabled: {'Yes' if result.get('monitoring_enabled') else 'No'}")
+                print(f"   Alerts Enabled: {'Yes' if result.get('alerts_enabled') else 'No'}")
+            else:
+                print(f"❌ Failed to setup monitoring: {result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ Error setting up monitoring: {e}")
+    
+    def _view_system_metrics(self) -> None:
+        """View system metrics (placeholder)."""
+        print("\n📊 System metrics viewing is not yet implemented.")
+        print("This feature will be available in a future update.")
+    
+    def _configure_alerts(self) -> None:
+        """Configure alerts (placeholder)."""
+        print("\n🚨 Alert configuration is not yet implemented.")
+        print("This feature will be available in a future update.")
+    
+    def _view_alert_history(self) -> None:
+        """View alert history (placeholder)."""
+        print("\n📋 Alert history viewing is not yet implemented.")
+        print("This feature will be available in a future update.")
+    
+    def _test_alert_system(self) -> None:
+        """Test alert system (placeholder)."""
+        print("\n🔄 Alert system testing is not yet implemented.")
+        print("This feature will be available in a future update.")
 
 
 def main():

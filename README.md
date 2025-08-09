@@ -1,6 +1,30 @@
-# League of Legends Team Optimizer
+# 🎮 League of Legends Team Optimizer v2.0
 
-A streamlined Python application that analyzes player data to determine optimal role assignments for League of Legends teams. The system features a simplified 4-option interface that consolidates all functionality into intuitive workflows while maintaining powerful optimization capabilities.
+**Advanced Analytics & Team Optimization Platform with Modern Web UI**
+
+A comprehensive platform for analyzing League of Legends gameplay, optimizing team compositions, and providing AI-powered champion recommendations. Now featuring a modern **Gradio web interface** with interactive charts, real-time analytics, and multiple deployment options including Google Colab support.
+
+## ✨ NEW: Gradio Web Interface
+
+🌟 **Major Update**: Now includes a beautiful web interface built with Gradio!
+
+- 🖥️ **Modern Web UI**: Interactive interface with tabbed navigation
+- 📊 **Real-time Charts**: Dynamic visualizations using Plotly
+- 📱 **Mobile Friendly**: Works on any device with a web browser
+- 🔗 **Shareable URLs**: Public links for team collaboration
+- ☁️ **Google Colab**: One-click setup in the cloud
+- 🎭 **Demo Mode**: Try it out with sample data (no API key needed)
+
+### Quick Start with Web UI:
+```bash
+# Install dependencies
+pip install -r requirements_gradio.txt
+
+# Launch web interface
+python launch_gradio.py --share
+```
+
+Or try the **[Google Colab notebook](LoL_Team_Optimizer_Gradio_Colab.ipynb)** for instant access!
 
 ## Features
 

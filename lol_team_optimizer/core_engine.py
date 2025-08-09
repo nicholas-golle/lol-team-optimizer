@@ -7,9 +7,11 @@ into a unified interface with intelligent defaults and comprehensive error handl
 
 import logging
 import time
+import json
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import asdict
+from pathlib import Path
 
 from .config import Config
 from .data_manager import DataManager
@@ -2899,7 +2901,8 @@ class CoreEngine:
             "overall_status": "OK",
             "components": {},
             "performance_metrics": {},
-            "recommendations": []
+            "recommendations": [],
+            "deployment_readiness": {}
         }
         
         # Check individual components
@@ -2934,6 +2937,9 @@ class CoreEngine:
         except Exception as e:
             health_status["performance_metrics"]["optimization_error"] = str(e)
         
+        # Check deployment readiness
+        health_status["deployment_readiness"] = self._check_deployment_readiness()
+        
         # Generate recommendations
         if health_status["overall_status"] == "DEGRADED":
             health_status["recommendations"].append("Some analytics components are offline - restart may be required")
@@ -2947,3 +2953,346 @@ class CoreEngine:
             pass
         
         return health_status
+    
+    def _check_deployment_readiness(self) -> Dict[str, Any]:
+        """
+        Check system readiness for production deployment.
+        
+        Returns:
+            Dictionary with deployment readiness status
+        """
+        readiness = {
+            "overall_ready": True,
+            "checks": {},
+            "warnings": [],
+            "critical_issues": []
+        }
+        
+        # Check analytics configuration
+        if self.analytics_available:
+            readiness["checks"]["analytics_configured"] = True
+        else:
+            readiness["checks"]["analytics_configured"] = False
+            readiness["warnings"].append("Analytics system not configured")
+        
+        # Check data backup procedures
+        try:
+            backup_status = self._check_backup_procedures()
+            readiness["checks"]["backup_configured"] = backup_status["configured"]
+            if not backup_status["configured"]:
+                readiness["warnings"].append("Data backup procedures not configured")
+        except Exception as e:
+            readiness["checks"]["backup_configured"] = False
+            readiness["warnings"].append(f"Backup check failed: {e}")
+        
+        # Check monitoring and alerting
+        try:
+            monitoring_status = self._check_monitoring_setup()
+            readiness["checks"]["monitoring_configured"] = monitoring_status["configured"]
+            if not monitoring_status["configured"]:
+                readiness["warnings"].append("Monitoring and alerting not configured")
+        except Exception as e:
+            readiness["checks"]["monitoring_configured"] = False
+            readiness["warnings"].append(f"Monitoring check failed: {e}")
+        
+        # Check configuration management
+        try:
+            config_status = self._check_configuration_management()
+            readiness["checks"]["config_management"] = config_status["configured"]
+            if not config_status["configured"]:
+                readiness["warnings"].append("Configuration management needs setup")
+        except Exception as e:
+            readiness["checks"]["config_management"] = False
+            readiness["warnings"].append(f"Configuration check failed: {e}")
+        
+        # Determine overall readiness
+        if readiness["critical_issues"]:
+            readiness["overall_ready"] = False
+        elif len(readiness["warnings"]) > 3:
+            readiness["overall_ready"] = False
+            readiness["critical_issues"].append("Too many configuration warnings for production deployment")
+        
+        return readiness
+    
+    def _check_backup_procedures(self) -> Dict[str, Any]:
+        """Check if data backup procedures are configured."""
+        import os
+        from pathlib import Path
+        
+        backup_status = {
+            "configured": False,
+            "backup_directory": None,
+            "last_backup": None,
+            "automated": False
+        }
+        
+        # Check for backup directory
+        backup_dir = Path("backups")
+        if backup_dir.exists():
+            backup_status["configured"] = True
+            backup_status["backup_directory"] = str(backup_dir.absolute())
+            
+            # Check for recent backups
+            backup_files = list(backup_dir.glob("*.backup"))
+            if backup_files:
+                latest_backup = max(backup_files, key=lambda x: x.stat().st_mtime)
+                backup_status["last_backup"] = latest_backup.name
+        
+        return backup_status
+    
+    def _check_monitoring_setup(self) -> Dict[str, Any]:
+        """Check if monitoring and alerting are configured."""
+        monitoring_status = {
+            "configured": False,
+            "log_level": "INFO",
+            "log_file": None,
+            "metrics_enabled": False
+        }
+        
+        # Check logging configuration
+        logger = logging.getLogger()
+        monitoring_status["log_level"] = logger.level
+        
+        # Check for log files
+        for handler in logger.handlers:
+            if hasattr(handler, 'baseFilename'):
+                monitoring_status["log_file"] = handler.baseFilename
+                monitoring_status["configured"] = True
+                break
+        
+        return monitoring_status
+    
+    def _check_configuration_management(self) -> Dict[str, Any]:
+        """Check configuration management setup."""
+        config_status = {
+            "configured": False,
+            "config_file": None,
+            "environment_vars": False,
+            "secrets_managed": False
+        }
+        
+        # Check for configuration files
+        config_files = ["config.json", "settings.json", ".env"]
+        for config_file in config_files:
+            if Path(config_file).exists():
+                config_status["configured"] = True
+                config_status["config_file"] = config_file
+                break
+        
+        # Check for environment variables
+        import os
+        if os.getenv("RIOT_API_KEY") or os.getenv("LOL_OPTIMIZER_CONFIG"):
+            config_status["environment_vars"] = True
+            config_status["configured"] = True
+        
+        return config_status
+    
+    def create_analytics_backup(self, backup_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Create a backup of analytics data and configuration.
+        
+        Args:
+            backup_name: Optional custom backup name
+            
+        Returns:
+            Dictionary with backup operation results
+        """
+        try:
+            import json
+            import shutil
+            from pathlib import Path
+            from datetime import datetime
+            
+            if not backup_name:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_name = f"analytics_backup_{timestamp}"
+            
+            backup_dir = Path("backups")
+            backup_dir.mkdir(exist_ok=True)
+            
+            backup_path = backup_dir / f"{backup_name}.backup"
+            
+            # Create backup data structure
+            backup_data = {
+                "timestamp": datetime.now().isoformat(),
+                "version": "2.0",
+                "analytics_config": {},
+                "cache_data": {},
+                "baseline_data": {},
+                "system_status": self.system_status
+            }
+            
+            # Backup analytics configuration
+            if self.analytics_available:
+                try:
+                    if self.analytics_cache_manager:
+                        cache_stats = self.analytics_cache_manager.get_cache_statistics()
+                        backup_data["cache_data"] = cache_stats
+                except Exception as e:
+                    backup_data["cache_data"] = {"error": str(e)}
+                
+                try:
+                    if self.baseline_manager:
+                        # Get baseline summary (not full data to keep backup size reasonable)
+                        backup_data["baseline_data"] = {"status": "available"}
+                except Exception as e:
+                    backup_data["baseline_data"] = {"error": str(e)}
+            
+            # Write backup file
+            with open(backup_path, 'w') as f:
+                json.dump(backup_data, f, indent=2, default=str)
+            
+            # Copy important data files
+            data_files = ["player_data.json", "match_data.json"]
+            for data_file in data_files:
+                if Path(data_file).exists():
+                    shutil.copy2(data_file, backup_dir / f"{backup_name}_{data_file}")
+            
+            return {
+                "success": True,
+                "backup_path": str(backup_path),
+                "backup_size": backup_path.stat().st_size,
+                "files_backed_up": len([f for f in backup_dir.glob(f"{backup_name}*")])
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error creating analytics backup: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def setup_analytics_monitoring(self, enable_alerts: bool = True) -> Dict[str, Any]:
+        """
+        Set up monitoring and alerting for analytics system.
+        
+        Args:
+            enable_alerts: Whether to enable alerting
+            
+        Returns:
+            Dictionary with monitoring setup results
+        """
+        try:
+            monitoring_config = {
+                "enabled": True,
+                "log_level": "INFO",
+                "metrics_collection": True,
+                "alerts_enabled": enable_alerts,
+                "health_check_interval": 300,  # 5 minutes
+                "performance_thresholds": {
+                    "cache_hit_rate_min": 0.7,
+                    "query_response_time_max": 5.0,
+                    "memory_usage_max": 0.8
+                }
+            }
+            
+            # Set up logging
+            import logging
+            logger = logging.getLogger("analytics_monitor")
+            logger.setLevel(logging.INFO)
+            
+            # Create file handler if not exists
+            if not any(isinstance(h, logging.FileHandler) for h in logger.handlers):
+                handler = logging.FileHandler("analytics_monitor.log")
+                formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                )
+                handler.setFormatter(formatter)
+                logger.addHandler(handler)
+            
+            # Save monitoring configuration
+            config_path = Path("analytics_monitoring.json")
+            with open(config_path, 'w') as f:
+                json.dump(monitoring_config, f, indent=2)
+            
+            self.logger.info("Analytics monitoring configured successfully")
+            
+            return {
+                "success": True,
+                "config_path": str(config_path),
+                "monitoring_enabled": True,
+                "alerts_enabled": enable_alerts
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error setting up analytics monitoring: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def get_deployment_configuration(self) -> Dict[str, Any]:
+        """
+        Get comprehensive deployment configuration for analytics system.
+        
+        Returns:
+            Dictionary with deployment configuration
+        """
+        try:
+            deployment_config = {
+                "system_info": {
+                    "version": "2.0",
+                    "analytics_enabled": self.analytics_available,
+                    "components_status": self._get_analytics_health_status()["components"],
+                    "deployment_timestamp": datetime.now().isoformat()
+                },
+                "configuration": {
+                    "cache_settings": {
+                        "enabled": True,
+                        "memory_limit": "512MB",
+                        "disk_cache": True,
+                        "ttl_default": 3600
+                    },
+                    "performance_settings": {
+                        "batch_size": 100,
+                        "parallel_processing": True,
+                        "query_timeout": 30
+                    },
+                    "monitoring_settings": {
+                        "health_checks": True,
+                        "performance_metrics": True,
+                        "error_tracking": True,
+                        "log_retention_days": 30
+                    }
+                },
+                "deployment_checklist": [
+                    {
+                        "item": "Analytics components initialized",
+                        "status": "OK" if self.analytics_available else "FAILED",
+                        "required": True
+                    },
+                    {
+                        "item": "Cache system configured",
+                        "status": "OK" if hasattr(self, 'analytics_cache_manager') and self.analytics_cache_manager else "FAILED",
+                        "required": True
+                    },
+                    {
+                        "item": "Monitoring configured",
+                        "status": "OK" if Path("analytics_monitoring.json").exists() else "PENDING",
+                        "required": False
+                    },
+                    {
+                        "item": "Backup procedures configured",
+                        "status": "OK" if Path("backups").exists() else "PENDING",
+                        "required": False
+                    }
+                ],
+                "recommendations": []
+            }
+            
+            # Add recommendations based on status
+            failed_required = [item for item in deployment_config["deployment_checklist"] 
+                             if item["required"] and item["status"] == "FAILED"]
+            
+            if failed_required:
+                deployment_config["recommendations"].append(
+                    "Critical: Fix failed required components before deployment"
+                )
+            
+            pending_optional = [item for item in deployment_config["deployment_checklist"] 
+                              if not item["required"] and item["status"] == "PENDING"]
+            
+            if pending_optional:
+                deployment_config["recommendations"].append(
+                    "Consider configuring optional components for production use"
+                )
+            
+            return deployment_config
+            
+        except Exception as e:
+            self.logger.error(f"Error getting deployment configuration: {e}")
+            return {"error": str(e)}
