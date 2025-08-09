@@ -1,169 +1,232 @@
 #!/usr/bin/env python3
 """
-Standalone launcher for LoL Team Optimizer Gradio UI
+Simple launcher for the LoL Team Optimizer Gradio UI
 
-This script provides an easy way to launch the Gradio interface locally
-with proper environment setup and error handling.
+This script provides a simple way to launch the Gradio interface,
+with fallback options if the main UI fails to load.
 """
 
 import sys
 import os
-import subprocess
-import argparse
-from pathlib import Path
-
-
-def check_dependencies():
-    """Check if required dependencies are installed."""
-    required_packages = [
-        'gradio',
-        'plotly',
-        'pandas',
-        'requests'
-    ]
-    
-    missing_packages = []
-    
-    for package in required_packages:
-        try:
-            __import__(package)
-        except ImportError:
-            missing_packages.append(package)
-    
-    return missing_packages
-
-
-def install_dependencies(missing_packages):
-    """Install missing dependencies."""
-    if not missing_packages:
-        return True
-    
-    print(f"📦 Installing missing packages: {', '.join(missing_packages)}")
-    
-    try:
-        # Try to install from requirements file first
-        if Path('requirements_gradio.txt').exists():
-            subprocess.check_call([
-                sys.executable, '-m', 'pip', 'install', 
-                '-r', 'requirements_gradio.txt'
-            ])
-        else:
-            # Install individual packages
-            for package in missing_packages:
-                subprocess.check_call([
-                    sys.executable, '-m', 'pip', 'install', package
-                ])
-        
-        print("✅ Dependencies installed successfully!")
-        return True
-        
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to install dependencies: {e}")
-        return False
-
-
-def setup_environment():
-    """Set up the environment for the Gradio UI."""
-    # Add current directory to Python path
-    current_dir = Path(__file__).parent.absolute()
-    if str(current_dir) not in sys.path:
-        sys.path.insert(0, str(current_dir))
-    
-    # Add lol_team_optimizer to path if it exists
-    lol_dir = current_dir / 'lol_team_optimizer'
-    if lol_dir.exists() and str(lol_dir) not in sys.path:
-        sys.path.insert(0, str(lol_dir))
-    
-    # Set up environment variables
-    if not os.getenv('RIOT_API_KEY'):
-        print("⚠️ RIOT_API_KEY not found in environment variables")
-        print("Some features may not work without a valid API key")
-        print("Get your API key from: https://developer.riotgames.com/")
-
+import traceback
 
 def main():
     """Main launcher function."""
-    parser = argparse.ArgumentParser(
-        description="Launch LoL Team Optimizer Gradio UI"
-    )
-    parser.add_argument(
-        '--share', 
-        action='store_true',
-        help='Enable public sharing (creates a public URL)'
-    )
-    parser.add_argument(
-        '--port', 
-        type=int, 
-        default=7860,
-        help='Port to run the server on (default: 7860)'
-    )
-    parser.add_argument(
-        '--host',
-        type=str,
-        default='127.0.0.1',
-        help='Host to bind to (default: 127.0.0.1)'
-    )
-    parser.add_argument(
-        '--no-install',
-        action='store_true',
-        help='Skip dependency installation check'
-    )
-    
-    args = parser.parse_args()
-    
     print("🎮 LoL Team Optimizer - Gradio UI Launcher")
     print("=" * 50)
     
-    # Check and install dependencies
-    if not args.no_install:
-        print("🔍 Checking dependencies...")
-        missing = check_dependencies()
-        
-        if missing:
-            print(f"📦 Missing packages: {', '.join(missing)}")
-            if not install_dependencies(missing):
-                print("❌ Failed to install dependencies. Exiting.")
-                return 1
-        else:
-            print("✅ All dependencies are installed")
+    # Add current directory to Python path
+    if os.getcwd() not in sys.path:
+        sys.path.append(os.getcwd())
     
-    # Set up environment
-    print("🔧 Setting up environment...")
-    setup_environment()
-    
-    # Import and launch the UI
+    # Try to import and launch the main UI
     try:
-        print("🚀 Launching Gradio interface...")
+        print("📦 Importing Gradio UI...")
         
-        # Import after environment setup
-        from gradio_ui import launch_ui
+        # Check if gradio_ui.py exists
+        if not os.path.exists('gradio_ui.py'):
+            raise FileNotFoundError("gradio_ui.py not found in current directory")
         
-        # Launch with specified parameters
-        launch_ui(
-            share=args.share,
-            server_port=args.port
-        )
+        # Import the UI
+        from gradio_ui import GradioUI, launch_ui
+        
+        print("✅ Successfully imported Gradio UI")
+        print("🚀 Launching interface...")
+        
+        # Launch the UI
+        launch_ui(share=True, server_port=7860)
         
     except ImportError as e:
-        print(f"❌ Failed to import Gradio UI: {e}")
-        print("\n🔧 Troubleshooting:")
-        print("1. Make sure you're in the correct directory")
-        print("2. Verify that gradio_ui.py exists")
-        print("3. Check that lol_team_optimizer module is available")
-        print("4. Try running with --no-install to skip dependency checks")
-        return 1
+        print(f"❌ Import error: {e}")
+        print("\n🔧 Trying alternative import method...")
         
-    except KeyboardInterrupt:
-        print("\n👋 Shutting down gracefully...")
-        return 0
-        
+        try:
+            # Try importing the module directly
+            import importlib.util
+            
+            spec = importlib.util.spec_from_file_location("gradio_ui", "gradio_ui.py")
+            gradio_ui_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(gradio_ui_module)
+            
+            print("✅ Alternative import successful")
+            print("🚀 Launching interface...")
+            
+            # Launch using the imported module
+            gradio_ui_module.launch_ui(share=True, server_port=7860)
+            
+        except Exception as alt_error:
+            print(f"❌ Alternative import also failed: {alt_error}")
+            create_fallback_interface()
+    
+    except FileNotFoundError as e:
+        print(f"❌ File not found: {e}")
+        print("\n📁 Current directory contents:")
+        for item in sorted(os.listdir('.')):
+            if item.endswith('.py') or os.path.isdir(item):
+                print(f"   {item}")
+        create_fallback_interface()
+    
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
-        import traceback
+        print("\n🔍 Full error details:")
         traceback.print_exc()
-        return 1
+        create_fallback_interface()
+
+
+def create_fallback_interface():
+    """Create a simple fallback interface."""
+    print("\n🔄 Creating fallback interface...")
+    
+    try:
+        import gradio as gr
+        
+        def show_status():
+            return """
+            # 🎮 LoL Team Optimizer - Fallback Mode
+            
+            The main interface could not be loaded. This is usually due to:
+            
+            ## Common Issues:
+            1. **Missing dependencies** - Run the installation cell again
+            2. **Repository not cloned** - Make sure the repository was downloaded
+            3. **API key not configured** - Set up your Riot API key
+            4. **Python path issues** - Restart the runtime and try again
+            
+            ## Next Steps:
+            1. Restart the runtime (Runtime → Restart runtime)
+            2. Re-run all setup cells from the beginning
+            3. Make sure all dependencies are installed
+            4. Verify your API key is configured
+            
+            ## Manual Setup:
+            If issues persist, you can try running the core engine directly:
+            
+            ```python
+            from lol_team_optimizer.core_engine import CoreEngine
+            engine = CoreEngine()
+            ```
+            """
+        
+        def check_dependencies():
+            """Check if required dependencies are available."""
+            results = []
+            
+            # Check core dependencies
+            deps = [
+                ('gradio', 'Gradio web framework'),
+                ('plotly', 'Plotting library'),
+                ('pandas', 'Data analysis library'),
+                ('requests', 'HTTP library'),
+            ]
+            
+            for dep, desc in deps:
+                try:
+                    __import__(dep)
+                    results.append(f"✅ {dep} - {desc}")
+                except ImportError:
+                    results.append(f"❌ {dep} - {desc} (MISSING)")
+            
+            # Check LoL Team Optimizer modules
+            lol_modules = [
+                ('lol_team_optimizer.core_engine', 'Core engine'),
+                ('lol_team_optimizer.models', 'Data models'),
+                ('lol_team_optimizer.config', 'Configuration'),
+            ]
+            
+            results.append("\n**LoL Team Optimizer Modules:**")
+            for module, desc in lol_modules:
+                try:
+                    __import__(module)
+                    results.append(f"✅ {module} - {desc}")
+                except ImportError as e:
+                    results.append(f"❌ {module} - {desc} (ERROR: {e})")
+            
+            return "\n".join(results)
+        
+        def check_files():
+            """Check if required files exist."""
+            results = []
+            
+            required_files = [
+                'gradio_ui.py',
+                'lol_team_optimizer/',
+                'lol_team_optimizer/core_engine.py',
+                'lol_team_optimizer/models.py',
+            ]
+            
+            results.append("**File Check:**")
+            for file_path in required_files:
+                if os.path.exists(file_path):
+                    results.append(f"✅ {file_path}")
+                else:
+                    results.append(f"❌ {file_path} (MISSING)")
+            
+            return "\n".join(results)
+        
+        # Create the fallback interface
+        with gr.Blocks(title="LoL Team Optimizer - Fallback") as demo:
+            gr.Markdown("# 🎮 LoL Team Optimizer - Fallback Mode")
+            
+            with gr.Tabs():
+                with gr.Tab("📋 Status"):
+                    status_output = gr.Markdown(show_status())
+                
+                with gr.Tab("🔍 Diagnostics"):
+                    gr.Markdown("## Dependency Check")
+                    dep_check_btn = gr.Button("Check Dependencies")
+                    dep_output = gr.Markdown()
+                    
+                    gr.Markdown("## File Check")
+                    file_check_btn = gr.Button("Check Files")
+                    file_output = gr.Markdown()
+                    
+                    dep_check_btn.click(fn=check_dependencies, outputs=dep_output)
+                    file_check_btn.click(fn=check_files, outputs=file_output)
+                
+                with gr.Tab("🔧 Manual Setup"):
+                    gr.Markdown("""
+                    ## Manual Setup Instructions
+                    
+                    If the automatic setup failed, try these manual steps:
+                    
+                    ### 1. Install Dependencies
+                    ```bash
+                    pip install gradio plotly pandas requests python-dotenv
+                    ```
+                    
+                    ### 2. Clone Repository
+                    ```bash
+                    git clone https://github.com/yourusername/lol-team-optimizer.git
+                    cd lol-team-optimizer
+                    ```
+                    
+                    ### 3. Set API Key
+                    ```python
+                    import os
+                    os.environ['RIOT_API_KEY'] = 'your_api_key_here'
+                    ```
+                    
+                    ### 4. Launch UI
+                    ```python
+                    from gradio_ui import launch_ui
+                    launch_ui(share=True)
+                    ```
+                    """)
+        
+        print("✅ Fallback interface created")
+        print("🚀 Launching fallback interface...")
+        
+        demo.launch(share=True, server_port=7860)
+        
+    except Exception as fallback_error:
+        print(f"❌ Even the fallback interface failed: {fallback_error}")
+        print("This suggests a serious environment issue.")
+        print("\nPlease try:")
+        print("1. Restart the runtime completely")
+        print("2. Re-run the installation cell")
+        print("3. Check your internet connection")
+        print("4. Verify Colab is working properly")
 
 
 if __name__ == "__main__":
-    exit_code = main()
-    sys.exit(exit_code)
+    main()
